@@ -18,52 +18,6 @@ $error_message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     
-    if ($action === 'create') {
-        try {
-            $nama_kelas = trim($_POST['nama_kelas']);
-            $tahun_ajaran = trim($_POST['tahun_ajaran']);
-            $id_guru_wali = $_POST['id_guru_wali'] ?? null;
-            
-            // Validasi
-            if (empty($nama_kelas) || empty($tahun_ajaran)) {
-                throw new Exception("Nama kelas dan tahun ajaran wajib diisi!");
-            }
-            
-            // Cek apakah nama kelas dan tahun ajaran sudah ada
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM kelas WHERE nama_kelas = ? AND tahun_ajaran = ?");
-            $stmt->execute([$nama_kelas, $tahun_ajaran]);
-            if ($stmt->fetchColumn() > 0) {
-                throw new Exception("Kelas dengan nama dan tahun ajaran yang sama sudah ada!");
-            }
-            
-            // Jika ada guru wali, cek apakah guru sudah menjadi wali kelas lain di tahun ajaran yang sama
-            if ($id_guru_wali) {
-                $stmt = $pdo->prepare("SELECT COUNT(*) FROM kelas WHERE id_guru_wali = ? AND tahun_ajaran = ?");
-                $stmt->execute([$id_guru_wali, $tahun_ajaran]);
-                if ($stmt->fetchColumn() > 0) {
-                    throw new Exception("Guru ini sudah menjadi wali kelas lain di tahun ajaran yang sama!");
-                }
-            }
-            
-            // Insert ke database
-            $stmt = $pdo->prepare("
-                INSERT INTO kelas (nama_kelas, tahun_ajaran, id_guru_wali)
-                VALUES (?, ?, ?)
-            ");
-            
-            $stmt->execute([
-                $nama_kelas,
-                $tahun_ajaran,
-                $id_guru_wali ? $id_guru_wali : null
-            ]);
-            
-            $success_message = "Kelas berhasil dibuat! ID Kelas: " . $pdo->lastInsertId();
-            
-        } catch (Exception $e) {
-            $error_message = $e->getMessage();
-        }
-    }
-    
     if ($action === 'update') {
         try {
             $id_kelas = $_POST['id_kelas'];
@@ -197,22 +151,33 @@ $total_siswa_terdaftar = $stmt->fetch()['total'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manajemen Kelas - Admin</title>
-    <link rel="stylesheet" href="../css/manage_kelas.css">
+    <link rel="stylesheet" href="../css/tambah_kelas.css">
 </head>
 <body>
     <div class="navbar">
         <h1>🏫 Manajemen Kelas</h1>
         <div class="user-info">
             <span><strong><?php echo htmlspecialchars($user_name); ?></strong></span>
-            <a href="/dashboard/dashboard_admin.php" class="btn btn-back">← Kembali</a>
+            <a href="../dashboard/dashboard_admin.php" class="btn btn-back">← Kembali</a>
         </div>
     </div>
 
     <div class="container">
         <div class="page-header">
-            <h2>Kelola Data Kelas</h2>
-            <p>Tambah, edit, dan hapus data kelas serta tetapkan wali kelas</p>
+            <div class="page-header-text">
+                <h2>Data Kelas</h2>
+                <p>Kelola dan lihat data kelas</p>
+            </div>
+            <a href="tambah_kelas.php" class="btn btn-success">➕ Tambah Kelas Baru</a>
         </div>
+
+        <?php if ($success_message): ?>
+        <div class="alert alert-success"><?php echo $success_message; ?></div>
+        <?php endif; ?>
+        
+        <?php if ($error_message): ?>
+        <div class="alert alert-danger"><?php echo $error_message; ?></div>
+        <?php endif; ?>
 
         <!-- Statistics -->
         <div class="stats-row">
@@ -231,61 +196,6 @@ $total_siswa_terdaftar = $stmt->fetch()['total'];
             <div class="stat-card" style="border-left-color: #26c6da;">
                 <h3>Total Siswa Terdaftar</h3>
                 <div class="number" style="color: #26c6da;"><?php echo $total_siswa_terdaftar; ?></div>
-            </div>
-        </div>
-
-        <!-- Form Tambah Kelas -->
-        <div class="card">
-            <div class="card-header">
-                <h3>➕ Tambah Kelas Baru</h3>
-            </div>
-            <div class="card-body">
-                <?php if ($success_message): ?>
-                <div class="alert alert-success"><?php echo $success_message; ?></div>
-                <?php endif; ?>
-                
-                <?php if ($error_message): ?>
-                <div class="alert alert-danger"><?php echo $error_message; ?></div>
-                <?php endif; ?>
-
-                <div class="info-box">
-                    <h4>ℹ️ Informasi</h4>
-                    <p>
-                        <strong>Nama Kelas:</strong> Contoh: X-1, XI IPA 1, XII IPS 2<br>
-                        <strong>Tahun Ajaran:</strong> Format: 2024/2025<br>
-                        <strong>Wali Kelas:</strong> Satu guru hanya bisa menjadi wali di satu kelas per tahun ajaran
-                    </p>
-                </div>
-
-                <form method="POST" action="">
-                    <input type="hidden" name="action" value="create">
-                    
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>Nama Kelas <span style="color: red;">*</span></label>
-                            <input type="text" name="nama_kelas" required placeholder="Contoh: X-1">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Tahun Ajaran <span style="color: red;">*</span></label>
-                            <input type="text" name="tahun_ajaran" required placeholder="Contoh: 2024/2025">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Wali Kelas (Opsional)</label>
-                            <select name="id_guru_wali">
-                                <option value="">Belum Ada Wali Kelas</option>
-                                <?php foreach ($all_guru as $guru): ?>
-                                <option value="<?php echo $guru['id_guru']; ?>">
-                                    <?php echo htmlspecialchars($guru['nama_guru']); ?> (ID: <?php echo $guru['id_guru']; ?>)
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-success">✓ Simpan Data Kelas</button>
-                </form>
             </div>
         </div>
 
@@ -414,7 +324,7 @@ $total_siswa_terdaftar = $stmt->fetch()['total'];
         </div>
     </div>
 
-    <!-- Modal Delete Confirmation -->
+    <!-- Modal Delete -->
     <div class="modal" id="deleteModal">
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header" style="background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);">
@@ -458,13 +368,11 @@ $total_siswa_terdaftar = $stmt->fetch()['total'];
     </div>
 
     <script>
-        // Edit Modal Functions
         function editKelas(kelas) {
             document.getElementById('edit_id_kelas').value = kelas.id_kelas;
             document.getElementById('edit_nama_kelas').value = kelas.nama_kelas;
             document.getElementById('edit_tahun_ajaran').value = kelas.tahun_ajaran;
             document.getElementById('edit_id_guru_wali').value = kelas.id_guru_wali || '';
-            
             document.getElementById('editModal').classList.add('active');
         }
         
@@ -472,7 +380,6 @@ $total_siswa_terdaftar = $stmt->fetch()['total'];
             document.getElementById('editModal').classList.remove('active');
         }
         
-        // Delete Modal Functions
         function deleteKelas(id, nama, jumlahSiswa) {
             document.getElementById('delete_id_kelas').value = id;
             document.getElementById('delete_nama_kelas').textContent = nama;
@@ -480,11 +387,9 @@ $total_siswa_terdaftar = $stmt->fetch()['total'];
             const warningEl = document.getElementById('delete_warning');
             if (jumlahSiswa > 0) {
                 warningEl.innerHTML = `⚠️ <strong>PERINGATAN:</strong> Kelas ini memiliki ${jumlahSiswa} siswa. Anda harus memindahkan atau menghapus siswa terlebih dahulu!`;
-                warningEl.style.color = '#e53e3e';
                 warningEl.style.fontWeight = 'bold';
             } else {
                 warningEl.innerHTML = '⚠️ Data yang sudah dihapus tidak dapat dikembalikan!';
-                warningEl.style.color = '#e53e3e';
                 warningEl.style.fontWeight = 'normal';
             }
             
@@ -495,12 +400,10 @@ $total_siswa_terdaftar = $stmt->fetch()['total'];
             document.getElementById('deleteModal').classList.remove('active');
         }
         
-        // View Siswa Modal Functions
         function viewSiswa(idKelas, namaKelas) {
             document.getElementById('view_nama_kelas').textContent = namaKelas;
             document.getElementById('viewSiswaModal').classList.add('active');
             
-            // Fetch data siswa dengan AJAX
             fetch('get_siswa_kelas.php?id_kelas=' + idKelas)
                 .then(response => response.json())
                 .then(data => {
@@ -549,24 +452,16 @@ $total_siswa_terdaftar = $stmt->fetch()['total'];
             document.getElementById('viewSiswaModal').classList.remove('active');
         }
         
-        // Close modal when clicking outside
         window.onclick = function(event) {
             const editModal = document.getElementById('editModal');
             const deleteModal = document.getElementById('deleteModal');
             const viewSiswaModal = document.getElementById('viewSiswaModal');
             
-            if (event.target === editModal) {
-                closeEditModal();
-            }
-            if (event.target === deleteModal) {
-                closeDeleteModal();
-            }
-            if (event.target === viewSiswaModal) {
-                closeViewSiswaModal();
-            }
+            if (event.target === editModal) closeEditModal();
+            if (event.target === deleteModal) closeDeleteModal();
+            if (event.target === viewSiswaModal) closeViewSiswaModal();
         }
         
-        // Auto close alert after 5 seconds
         setTimeout(function() {
             const alerts = document.querySelectorAll('.alert');
             alerts.forEach(function(alert) {
