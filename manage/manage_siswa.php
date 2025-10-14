@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'config.php';
+require_once '../config.php';
 
 // Cek apakah user sudah login dan tipe user adalah admin
 checkUserType(['admin']);
@@ -17,65 +17,6 @@ $error_message = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
-    
-    if ($action === 'create') {
-        try {
-            $nis = trim($_POST['nis']);
-            $nama_siswa = trim($_POST['nama_siswa']);
-            $password = $_POST['password'];
-            $confirm_password = $_POST['confirm_password'];
-            $jenis_kelamin = $_POST['jenis_kelamin'];
-            $tanggal_lahir = $_POST['tanggal_lahir'];
-            $alamat = trim($_POST['alamat']);
-            $no_hp = trim($_POST['no_hp']);
-            $id_kelas = $_POST['id_kelas'] ?? null;
-            
-            // Validasi
-            if (empty($nis) || empty($nama_siswa) || empty($password)) {
-                throw new Exception("NIS, Nama, dan Password wajib diisi!");
-            }
-            
-            if ($password !== $confirm_password) {
-                throw new Exception("Password dan konfirmasi password tidak sama!");
-            }
-            
-            if (strlen($password) < 6) {
-                throw new Exception("Password minimal 6 karakter!");
-            }
-            
-            // Cek apakah NIS sudah ada
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM user_siswa WHERE nis = ?");
-            $stmt->execute([$nis]);
-            if ($stmt->fetchColumn() > 0) {
-                throw new Exception("NIS sudah terdaftar!");
-            }
-            
-            // Hash password
-            $password_hash = password_hash($password, PASSWORD_DEFAULT);
-            
-            // Insert ke database
-            $stmt = $pdo->prepare("
-                INSERT INTO user_siswa (nis, nama_siswa, password_login, jenis_kelamin, tanggal_lahir, alamat, no_hp, id_kelas, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'aktif')
-            ");
-            
-            $stmt->execute([
-                $nis,
-                $nama_siswa,
-                $password_hash,
-                $jenis_kelamin,
-                $tanggal_lahir,
-                $alamat,
-                $no_hp,
-                $id_kelas ? $id_kelas : null
-            ]);
-            
-            $success_message = "Akun siswa berhasil dibuat! ID Siswa: " . $pdo->lastInsertId();
-            
-        } catch (Exception $e) {
-            $error_message = $e->getMessage();
-        }
-    }
     
     if ($action === 'update') {
         try {
@@ -203,6 +144,9 @@ $stmt = $pdo->query("SELECT id_kelas, nama_kelas, tahun_ajaran FROM kelas ORDER 
 $all_kelas = $stmt->fetchAll();
 
 // Ambil statistik
+$stmt = $pdo->query("SELECT COUNT(*) as total FROM user_siswa");
+$total_siswa = $stmt->fetch()['total'];
+
 $stmt = $pdo->query("SELECT COUNT(*) as total FROM user_siswa WHERE status = 'aktif'");
 $total_siswa_aktif = $stmt->fetch()['total'];
 
@@ -329,16 +273,19 @@ $total_siswa_pindah = $stmt->fetch()['total'];
         }
         
         .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 30px;
         }
         
-        .page-header h2 {
+        .page-header-text h2 {
             color: #2d3748;
             font-size: 28px;
             margin-bottom: 5px;
         }
         
-        .page-header p {
+        .page-header-text p {
             color: #718096;
         }
         
@@ -618,6 +565,12 @@ $total_siswa_pindah = $stmt->fetch()['total'];
             table td {
                 padding: 10px;
             }
+            
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
         }
     </style>
 </head>
@@ -626,21 +579,32 @@ $total_siswa_pindah = $stmt->fetch()['total'];
         <h1>👥 Manajemen Siswa</h1>
         <div class="user-info">
             <span><strong><?php echo htmlspecialchars($user_name); ?></strong></span>
-            <a href="./dashboard/dashboard_admin.php" class="btn btn-back">← Kembali</a>
+            <a href="dashboard_admin.php" class="btn btn-back">← Kembali</a>
         </div>
     </div>
 
     <div class="container">
         <div class="page-header">
-            <h2>Kelola Data Siswa</h2>
-            <p>Tambah, edit, dan hapus data siswa</p>
+            <div class="page-header-text">
+                <h2>Data Siswa</h2>
+                <p>Kelola dan lihat data siswa</p>
+            </div>
+            <a href="tambah_siswa.php" class="btn btn-success">➕ Tambah Siswa Baru</a>
         </div>
+
+        <?php if ($success_message): ?>
+        <div class="alert alert-success"><?php echo $success_message; ?></div>
+        <?php endif; ?>
+        
+        <?php if ($error_message): ?>
+        <div class="alert alert-danger"><?php echo $error_message; ?></div>
+        <?php endif; ?>
 
         <!-- Statistics -->
         <div class="stats-row">
             <div class="stat-card">
                 <h3>Total Siswa</h3>
-                <div class="number"><?php echo count($all_siswa); ?></div>
+                <div class="number"><?php echo $total_siswa; ?></div>
             </div>
             <div class="stat-card" style="border-left-color: #38ef7d;">
                 <h3>Siswa Aktif</h3>
@@ -651,88 +615,12 @@ $total_siswa_pindah = $stmt->fetch()['total'];
                 <div class="number" style="color: #ffa726;"><?php echo $total_siswa_lulus; ?></div>
             </div>
             <div class="stat-card" style="border-left-color: #f5576c;">
-                <h3>Siswa Nonaktif/Pindah</h3>
-                <div class="number" style="color: #f5576c;"><?php echo $total_siswa_nonaktif + $total_siswa_pindah; ?></div>
+                <h3>Siswa Nonaktif</h3>
+                <div class="number" style="color: #f5576c;"><?php echo $total_siswa_nonaktif; ?></div>
             </div>
-        </div>
-
-        <!-- Form Tambah Siswa -->
-        <div class="card">
-            <div class="card-header">
-                <h3>➕ Tambah Siswa Baru</h3>
-            </div>
-            <div class="card-body">
-                <?php if ($success_message): ?>
-                <div class="alert alert-success"><?php echo $success_message; ?></div>
-                <?php endif; ?>
-                
-                <?php if ($error_message): ?>
-                <div class="alert alert-danger"><?php echo $error_message; ?></div>
-                <?php endif; ?>
-
-                <form method="POST" action="">
-                    <input type="hidden" name="action" value="create">
-                    
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>NIS <span style="color: red;">*</span></label>
-                            <input type="text" name="nis" required placeholder="Masukkan NIS">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Nama Lengkap <span style="color: red;">*</span></label>
-                            <input type="text" name="nama_siswa" required placeholder="Masukkan nama lengkap">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Jenis Kelamin <span style="color: red;">*</span></label>
-                            <select name="jenis_kelamin" required>
-                                <option value="">Pilih Jenis Kelamin</option>
-                                <option value="L">Laki-laki</option>
-                                <option value="P">Perempuan</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Tanggal Lahir <span style="color: red;">*</span></label>
-                            <input type="date" name="tanggal_lahir" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Nomor HP</label>
-                            <input type="text" name="no_hp" placeholder="08xxxxxxxxxx">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Kelas</label>
-                            <select name="id_kelas">
-                                <option value="">Pilih Kelas (Opsional)</option>
-                                <?php foreach ($all_kelas as $kelas): ?>
-                                <option value="<?php echo $kelas['id_kelas']; ?>">
-                                    <?php echo htmlspecialchars($kelas['nama_kelas']) . ' - ' . htmlspecialchars($kelas['tahun_ajaran']); ?>
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Password <span style="color: red;">*</span></label>
-                            <input type="password" name="password" required placeholder="Minimal 6 karakter">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Konfirmasi Password <span style="color: red;">*</span></label>
-                            <input type="password" name="confirm_password" required placeholder="Ketik ulang password">
-                        </div>
-                        
-                        <div class="form-group full-width">
-                            <label>Alamat</label>
-                            <textarea name="alamat" placeholder="Masukkan alamat lengkap"></textarea>
-                        </div>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-success">✓ Simpan Data Siswa</button>
-                </form>
+            <div class="stat-card" style="border-left-color: #26c6da;">
+                <h3>Siswa Pindah</h3>
+                <div class="number" style="color: #26c6da;"><?php echo $total_siswa_pindah; ?></div>
             </div>
         </div>
 

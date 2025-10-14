@@ -408,16 +408,16 @@ try {
             <a href="#" class="menu-item active">
                 <span>📊</span> Dashboard
             </a>
-            <a href="../manage_siswa.php" class="menu-item">
+            <a href="../manage/manage_siswa.php" class="menu-item">
                 <span>👥</span> Manajemen Siswa
             </a>
-            <a href="../manage_guru.php" class="menu-item">
+            <a href="../manage/manage_guru.php" class="menu-item">
                 <span>👨‍🏫</span> Manajemen Guru
             </a>
-            <a href="../manage_kelas.php" class="menu-item">
+            <a href="../manage/manage_kelas.php" class="menu-item">
                 <span>🏫</span> Manajemen Kelas
             </a>
-            <a href="#" class="menu-item">
+            <a href="../manage/manage_pelajaran.php" class="menu-item">
                 <span>📚</span> Manajemen Pelajaran
             </a>
             <a href="#" class="menu-item">
@@ -476,22 +476,22 @@ try {
 
             <!-- Quick Menu -->
             <div class="menu-grid">
-                <a href="../manage_siswa.php" class="menu-card">
+                <a href="../add/tambah_siswa.php" class="menu-card">
                     <div class="icon">👥</div>
                     <h3>Tambah Siswa Baru</h3>
                     <p>Daftarkan siswa baru ke dalam sistem</p>
                 </a>
-                <a href="../manage_guru.php" class="menu-card" style="border-top-color: #38ef7d;">
+                <a href="../add/tambah_guru.php" class="menu-card" style="border-top-color: #38ef7d;">
                     <div class="icon">👨‍🏫</div>
                     <h3>Tambah Guru Baru</h3>
                     <p>Daftarkan guru baru dan buat akun</p>
                 </a>
-                <a href="#" class="menu-card" style="border-top-color: #f5576c;">
+                <a href="../add/tambah_kelas.php" class="menu-card" style="border-top-color: #f5576c;">
                     <div class="icon">🏫</div>
                     <h3>Tambah Kelas Baru</h3>
                     <p>Buat kelas baru dan tentukan wali kelas</p>
                 </a>
-                <a href="#" class="menu-card" style="border-top-color: #ffa726;">
+                <a href="../add/tambah_pelajaran.php" class="menu-card" style="border-top-color: #ffa726;">
                     <div class="icon">📚</div>
                     <h3>Tambah Pelajaran</h3>
                     <p>Tambahkan mata pelajaran baru</p>

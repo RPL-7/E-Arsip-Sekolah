@@ -3,9 +3,9 @@ session_start();
 
 // Konfigurasi database
 $host = 'localhost';
-$dbname = 'db_arsipsekolah'; // Ganti dengan nama database Anda
-$username = 'root'; // Ganti dengan username database Anda
-$password = ''; // Ganti dengan password database Anda
+$dbname = 'db_arsipsekolah'; 
+$username = 'root'; 
+$password = ''; 
 
 header('Content-Type: application/json');
 

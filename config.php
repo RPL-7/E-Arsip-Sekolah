@@ -1,9 +1,9 @@
 <?php
 // Konfigurasi Database
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'db_arsipsekolah'); // Ganti dengan nama database Anda
-define('DB_USER', 'root'); // Ganti dengan username database Anda
-define('DB_PASS', ''); // Ganti dengan password database Anda
+define('DB_NAME', 'db_arsipsekolah'); 
+define('DB_USER', 'root'); 
+define('DB_PASS', ''); 
 
 // Fungsi koneksi database
 function getDBConnection() {
