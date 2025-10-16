@@ -60,7 +60,7 @@ try {
                     $_SESSION['user_nis'] = $user_data['nis'];
                     $_SESSION['user_name'] = $user_data['nama_siswa'];
                     
-                    $redirect_url = '/dashboard/dashboard_siswa.php';
+                    $redirect_url = 'dashboard/dashboard_siswa.php';
                     
                     echo json_encode([
                         'success' => true,
@@ -109,7 +109,7 @@ try {
                     $_SESSION['user_name'] = $user_data['nama_guru'];
                     $_SESSION['user_email'] = $user_data['email'];
                     
-                    $redirect_url = '/dashboard/dashboard_guru.php';
+                    $redirect_url = 'dashboard/dashboard_guru.php';
                     
                     echo json_encode([
                         'success' => true,
@@ -149,7 +149,7 @@ try {
                     $_SESSION['user_name'] = $user_data['nama_admin'];
                     $_SESSION['user_email'] = $user_data['email'];
                     
-                    $redirect_url = '/dashboard/dashboard_admin.php';
+                    $redirect_url = 'dashboard/dashboard_admin.php';
                     
                     echo json_encode([
                         'success' => true,

@@ -14,7 +14,7 @@ $user_nis = $_SESSION['user_nis'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Siswa</title>
-    <link rel="stylesheet" href="/css/dashboard_siswa.css">
+    <link rel="stylesheet" href="../css/dashboard_siswa.css">
 </head>
 <body>
     <div class="navbar">
