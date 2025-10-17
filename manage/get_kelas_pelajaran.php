@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'config.php';
+require_once '../config.php';
 
 // Cek apakah user sudah login dan tipe user adalah admin
 checkUserType(['admin']);
@@ -16,12 +16,16 @@ try {
     
     $pdo = getDBConnection();
     
-    // Ambil data kelas yang mengajarkan pelajaran ini
+    // Ambil data kelas yang mengajarkan pelajaran ini dengan info guru
     $stmt = $pdo->prepare("
-        SELECT k.id_kelas, k.nama_kelas, k.tahun_ajaran, g.nama_guru as nama_wali
+        SELECT k.id_kelas, k.nama_kelas, k.tahun_ajaran, 
+               g.nama_guru as nama_wali,
+               kp.id_guru,
+               guru_pengajar.nama_guru as nama_guru_pengajar
         FROM kelas_pelajaran kp
         JOIN kelas k ON kp.id_kelas = k.id_kelas
         LEFT JOIN user_guru g ON k.id_guru_wali = g.id_guru
+        LEFT JOIN user_guru guru_pengajar ON kp.id_guru = guru_pengajar.id_guru
         WHERE kp.id_pelajaran = ?
         ORDER BY k.tahun_ajaran DESC, k.nama_kelas ASC
     ");

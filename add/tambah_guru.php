@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <h1>➕ Tambah Guru Baru</h1>
         <div class="user-info">
             <span><strong><?php echo htmlspecialchars($user_name); ?></strong></span>
-            <a href="../dashboard//dashboard_admin.php" class="btn btn-back">← Kembali</a>
+            <a href="../dashboard/dashboard_admin.php" class="btn btn-back">← Kembali</a>
         </div>
     </div>
 

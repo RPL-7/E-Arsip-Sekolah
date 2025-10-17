@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $id_pelajaran = $_POST['id_pelajaran'];
             $nama_pelajaran = trim($_POST['nama_pelajaran']);
-            $kelas_terpilih = $_POST['kelas'] ?? [];
+            $kelas_guru = $_POST['kelas_guru'] ?? [];
             
             // Validasi
             if (empty($nama_pelajaran)) {
@@ -47,11 +47,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare("DELETE FROM kelas_pelajaran WHERE id_pelajaran = ?");
             $stmt->execute([$id_pelajaran]);
             
-            // Insert relasi kelas baru
-            if (!empty($kelas_terpilih)) {
-                $stmt = $pdo->prepare("INSERT INTO kelas_pelajaran (id_kelas, id_pelajaran) VALUES (?, ?)");
-                foreach ($kelas_terpilih as $id_kelas) {
-                    $stmt->execute([$id_kelas, $id_pelajaran]);
+            // Insert relasi kelas baru dengan guru
+            if (!empty($kelas_guru)) {
+                $stmt = $pdo->prepare("INSERT INTO kelas_pelajaran (id_kelas, id_pelajaran, id_guru) VALUES (?, ?, ?)");
+                foreach ($kelas_guru as $id_kelas => $id_guru) {
+                    $guru_id = !empty($id_guru) ? $id_guru : null;
+                    $stmt->execute([$id_kelas, $id_pelajaran, $guru_id]);
                 }
             }
             
@@ -124,6 +125,10 @@ $all_pelajaran = $stmt->fetchAll();
 $stmt = $pdo->query("SELECT id_kelas, nama_kelas, tahun_ajaran FROM kelas ORDER BY tahun_ajaran DESC, nama_kelas ASC");
 $all_kelas = $stmt->fetchAll();
 
+// Ambil daftar guru aktif
+$stmt = $pdo->query("SELECT id_guru, nama_guru FROM user_guru WHERE status = 'aktif' ORDER BY nama_guru ASC");
+$all_guru = $stmt->fetchAll();
+
 // Ambil statistik
 $stmt = $pdo->query("SELECT COUNT(*) as total FROM pelajaran");
 $total_pelajaran = $stmt->fetch()['total'];
@@ -140,14 +145,475 @@ $total_kelas = $stmt->fetch()['total'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manajemen Pelajaran - Admin</title>
-    <link rel="stylesheet" href="../css/manage_pelajaran.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+        }
+        
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .navbar h1 {
+            font-size: 24px;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #38ef7d;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #2dd36f;
+        }
+        
+        .btn-danger {
+            background: #f5576c;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #e94560;
+        }
+        
+        .btn-warning {
+            background: #ffa726;
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            background: #fb8c00;
+        }
+        
+        .btn-info {
+            background: #26c6da;
+            color: white;
+        }
+        
+        .btn-info:hover {
+            background: #00acc1;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .btn-back {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+        }
+        
+        .btn-back:hover {
+            background: white;
+            color: #667eea;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .page-header-text h2 {
+            color: #2d3748;
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+        
+        .page-header-text p {
+            color: #718096;
+        }
+        
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border-left: 4px solid #667eea;
+        }
+        
+        .stat-card h3 {
+            font-size: 14px;
+            color: #718096;
+            margin-bottom: 8px;
+        }
+        
+        .stat-card .number {
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+        }
+        
+        .card-header h3 {
+            font-size: 20px;
+        }
+        
+        .card-body {
+            padding: 25px;
+        }
+        
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .filter-bar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-bar input {
+            flex: 1;
+            min-width: 250px;
+            padding: 10px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        table th {
+            background: #f8f9fa;
+            padding: 15px;
+            text-align: left;
+            font-size: 13px;
+            color: #555;
+            font-weight: 600;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        table td {
+            padding: 15px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 14px;
+            color: #2d3748;
+        }
+        
+        table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .badge-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            overflow-y: auto;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+            margin: 20px;
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header h3 {
+            font-size: 20px;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        
+        .modal-body {
+            padding: 25px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            color: #2d3748;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+        
+        .kelas-selection {
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .kelas-item {
+            display: grid;
+            grid-template-columns: auto 2fr 3fr;
+            gap: 15px;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .kelas-item:last-child {
+            border-bottom: none;
+        }
+        
+        .kelas-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .kelas-item label {
+            cursor: pointer;
+            margin: 0;
+            font-weight: normal;
+        }
+        
+        .kelas-item .kelas-label {
+            font-weight: 500;
+            color: #2d3748;
+        }
+        
+        .kelas-item select {
+            padding: 8px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        
+        .kelas-item select:disabled {
+            background: #f8f9fa;
+            color: #a0aec0;
+            cursor: not-allowed;
+        }
+        
+        .kelas-header {
+            display: grid;
+            grid-template-columns: auto 2fr 3fr;
+            gap: 15px;
+            padding: 10px 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            font-weight: 600;
+            font-size: 13px;
+            color: #555;
+        }
+        
+        .select-all {
+            background: #f8f9fa;
+            padding: 8px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            font-weight: 600;
+        }
+        
+        .select-all input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+        
+        @media (max-width: 768px) {
+            .filter-bar {
+                flex-direction: column;
+            }
+            
+            .filter-bar input {
+                min-width: 100%;
+            }
+            
+            table {
+                font-size: 12px;
+            }
+            
+            table th,
+            table td {
+                padding: 10px;
+            }
+            
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="navbar">
         <h1>📚 Manajemen Pelajaran</h1>
         <div class="user-info">
             <span><strong><?php echo htmlspecialchars($user_name); ?></strong></span>
-            <a href="dashboard_admin.php" class="btn btn-back">← Kembali</a>
+            <a href="../dashboard/dashboard_admin.php" class="btn btn-back">← Kembali</a>
         </div>
     </div>
 
@@ -262,10 +728,45 @@ $total_kelas = $stmt->fetch()['total'];
                     </div>
                     
                     <div class="form-group">
-                        <label>Pilih Kelas yang Mengajarkan</label>
+                        <label>Pilih Kelas dan Guru Pengajar</label>
                         <div class="kelas-selection">
                             <div class="select-all">
                                 <input type="checkbox" id="edit_select_all" onclick="toggleEditSelectAll(this)">
+                                <label for="edit_select_all">Pilih Semua Kelas</label>
+                            </div>
+                            
+                            <div class="kelas-header">
+                                <div>Pilih</div>
+                                <div style="grid-column: span 2;">Kelas</div>
+                                <div style="grid-column: span 2;">Guru Pengajar</div>
+                            </div>
+                            
+                            <?php foreach ($all_kelas as $kelas): ?>
+                            <div class="kelas-item">
+                                <input type="checkbox" 
+                                       class="edit-kelas-checkbox" 
+                                       id="edit_kelas_<?php echo $kelas['id_kelas']; ?>"
+                                       onchange="toggleEditGuruSelect(<?php echo $kelas['id_kelas']; ?>)">
+                                
+                                <label for="edit_kelas_<?php echo $kelas['id_kelas']; ?>" class="kelas-label" style="grid-column: span 2;">
+                                    <?php echo htmlspecialchars($kelas['nama_kelas']) . ' - ' . htmlspecialchars($kelas['tahun_ajaran']); ?>
+                                </label>
+                                
+                                <select name="kelas_guru[<?php echo $kelas['id_kelas']; ?>]" 
+                                        id="edit_guru_<?php echo $kelas['id_kelas']; ?>"
+                                        style="grid-column: span 2;" 
+                                        disabled>
+                                    <option value="">-- Pilih Guru Pengajar --</option>
+                                    <?php foreach ($all_guru as $guru): ?>
+                                    <option value="<?php echo $guru['id_guru']; ?>">
+                                        <?php echo htmlspecialchars($guru['nama_guru']); ?>
+                                    </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
                                 <label for="edit_select_all">Pilih Semua Kelas</label>
                             </div>
                             
@@ -337,19 +838,30 @@ $total_kelas = $stmt->fetch()['total'];
             document.getElementById('edit_id_pelajaran').value = pelajaran.id_pelajaran;
             document.getElementById('edit_nama_pelajaran').value = pelajaran.nama_pelajaran;
             
-            // Ambil kelas yang sudah dipilih
+            // Reset semua checkbox dan select
+            const checkboxes = document.querySelectorAll('.edit-kelas-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = false;
+                const idKelas = cb.id.replace('edit_kelas_', '');
+                document.getElementById('edit_guru_' + idKelas).disabled = true;
+                document.getElementById('edit_guru_' + idKelas).value = '';
+            });
+            
+            // Ambil kelas dan guru yang sudah dipilih
             fetch('get_kelas_pelajaran.php?id_pelajaran=' + pelajaran.id_pelajaran)
                 .then(response => response.json())
                 .then(data => {
-                    // Uncheck semua checkbox
-                    const checkboxes = document.querySelectorAll('.edit-kelas-checkbox');
-                    checkboxes.forEach(cb => cb.checked = false);
-                    
-                    // Check checkbox yang sudah dipilih
                     if (data.success && data.kelas) {
                         data.kelas.forEach(kelas => {
                             const checkbox = document.getElementById('edit_kelas_' + kelas.id_kelas);
-                            if (checkbox) checkbox.checked = true;
+                            if (checkbox) {
+                                checkbox.checked = true;
+                                const select = document.getElementById('edit_guru_' + kelas.id_kelas);
+                                select.disabled = false;
+                                if (kelas.id_guru) {
+                                    select.value = kelas.id_guru;
+                                }
+                            }
                         });
                     }
                 });
@@ -365,7 +877,23 @@ $total_kelas = $stmt->fetch()['total'];
             const kelasCheckboxes = document.querySelectorAll('.edit-kelas-checkbox');
             kelasCheckboxes.forEach(cb => {
                 cb.checked = checkbox.checked;
+                const idKelas = cb.id.replace('edit_kelas_', '');
+                toggleEditGuruSelect(idKelas);
             });
+        }
+        
+        function toggleEditGuruSelect(idKelas) {
+            const checkbox = document.getElementById('edit_kelas_' + idKelas);
+            const select = document.getElementById('edit_guru_' + idKelas);
+            
+            if (checkbox.checked) {
+                select.disabled = false;
+                select.style.background = 'white';
+            } else {
+                select.disabled = true;
+                select.value = '';
+                select.style.background = '#f8f9fa';
+            }
         }
         
         function deletePelajaran(id, nama) {
@@ -393,6 +921,7 @@ $total_kelas = $stmt->fetch()['total'];
                             html += '<th style="background: #f8f9fa; padding: 12px; text-align: left; border-bottom: 2px solid #e2e8f0;">No</th>';
                             html += '<th style="background: #f8f9fa; padding: 12px; text-align: left; border-bottom: 2px solid #e2e8f0;">Nama Kelas</th>';
                             html += '<th style="background: #f8f9fa; padding: 12px; text-align: left; border-bottom: 2px solid #e2e8f0;">Tahun Ajaran</th>';
+                            html += '<th style="background: #f8f9fa; padding: 12px; text-align: left; border-bottom: 2px solid #e2e8f0;">Guru Pengajar</th>';
                             html += '<th style="background: #f8f9fa; padding: 12px; text-align: left; border-bottom: 2px solid #e2e8f0;">Wali Kelas</th>';
                             html += '</tr></thead><tbody>';
                             
@@ -401,6 +930,13 @@ $total_kelas = $stmt->fetch()['total'];
                                 html += '<td style="padding: 12px;">' + (index + 1) + '</td>';
                                 html += '<td style="padding: 12px;"><strong>' + kelas.nama_kelas + '</strong></td>';
                                 html += '<td style="padding: 12px;">' + kelas.tahun_ajaran + '</td>';
+                                html += '<td style="padding: 12px;">';
+                                if (kelas.nama_guru_pengajar) {
+                                    html += '<span style="background: #d4edda; color: #155724; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">👨‍🏫 ' + kelas.nama_guru_pengajar + '</span>';
+                                } else {
+                                    html += '<span style="color: #a0aec0;">Belum ditentukan</span>';
+                                }
+                                html += '</td>';
                                 html += '<td style="padding: 12px;">' + (kelas.nama_wali || '-') + '</td>';
                                 html += '</tr>';
                             });
