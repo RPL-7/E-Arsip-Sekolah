@@ -150,16 +150,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$tugas) {
                 throw new Exception("Tugas tidak ditemukan!");
             }
-            
-            // Hapus file jika ada
-            if ($tugas['file_path'] && file_exists($tugas['file_path'])) {
-                unlink($tugas['file_path']);
+
+            // Cek apakah file_path ada dan file-nya benar-benar ada
+            if (!empty($tugas['file_path']) && file_exists($tugas['file_path'])) {
+                $filePath = $tugas['file_path'];
+
+                // Jika file ada di folder tugas/, hapus
+                if (strpos($filePath, 'tugas/') !== false) {
+                    if (unlink($filePath)) {
+                        // Berhasil dihapus
+                    } else {
+                        throw new Exception("Gagal menghapus file tugas.");
+                    }
+                }
+                // Jika file di dalam folder arsip/, jangan dihapus
             }
-            
-            // Hapus tugas
+
+            // Hapus data tugas dari database
             $stmt = $pdo->prepare("DELETE FROM tugas WHERE id_tugas = ?");
             $stmt->execute([$id_tugas]);
-            
+
             $success_message = "Tugas berhasil dihapus!";
             
         } catch (Exception $e) {
@@ -867,6 +877,10 @@ function formatSize($bytes) {
                     <button class="btn btn-danger btn-sm" onclick="deleteTugas(<?php echo $tugas['id_tugas']; ?>, '<?php echo htmlspecialchars($tugas['judul_tugas']); ?>')">
                         🗑️ Hapus
                     </button>
+                    <!-- Tambahkan di bagian tugas-actions -->
+                    <a href="nilai_tugas.php?id=<?php echo $tugas['id_tugas']; ?>" class="btn btn-success btn-sm">
+                        📊 Lihat & Nilai
+                    </a>
                 </div>
             </div>
             <?php endforeach; ?>

@@ -48,6 +48,7 @@ $user_nis = $_SESSION['user_nis'];
             <div class="info-card">
                 <h3>📁 Arsip</h3>
                 <p>Akses materi dan arsip pembelajaran</p>
+                <a href="../arsip/arsip_siswa.php" style="display: inline-block; margin-top: 10px; padding: 8px 16px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-size: 14px;">Lihat Arsip →</a>
             </div>
         </div>
     </div>
