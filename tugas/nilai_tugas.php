@@ -128,58 +128,7 @@ $nama_guru = $stmt->fetch()['nama_guru'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Penilaian Tugas</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f7fa; }
-        .navbar { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .navbar h1 { font-size: 24px; }
-        .user-info { display: flex; align-items: center; gap: 20px; }
-        .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.3s ease; text-decoration: none; display: inline-block; }
-        .btn-back { background: rgba(255,255,255,0.2); color: white; border: 2px solid white; }
-        .btn-back:hover { background: white; color: #11998e; }
-        .btn-warning { background: #ffa726; color: white; }
-        .btn-success { background: #38ef7d; color: white; }
-        .btn-secondary { background: #6c757d; color: white; }
-        .btn-sm { padding: 6px 12px; font-size: 12px; }
-        .btn:hover { opacity: 0.9; transform: translateY(-2px); }
-        .container { max-width: 1400px; margin: 30px auto; padding: 0 20px; }
-        .alert { padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
-        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .tugas-info { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; }
-        .tugas-info h3 { font-size: 24px; margin-bottom: 15px; }
-        .tugas-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px; }
-        .tugas-info-item { background: rgba(255,255,255,0.2); padding: 12px; border-radius: 8px; }
-        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 4px solid #11998e; }
-        .stat-card h3 { font-size: 14px; color: #718096; margin-bottom: 8px; }
-        .stat-card .number { font-size: 28px; font-weight: bold; color: #11998e; }
-        .card { background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 30px; overflow: hidden; }
-        .card-body { padding: 25px; }
-        .table-responsive { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
-        th { background: #f7fafc; font-weight: 600; color: #2d3748; }
-        tr:hover { background: #f7fafc; }
-        .badge { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
-        .badge-success { background: #d4edda; color: #155724; }
-        .badge-warning { background: #fff3cd; color: #856404; }
-        .badge-danger { background: #f8d7da; color: #721c24; }
-        .badge-secondary { background: #e2e8f0; color: #555; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; overflow-y: auto; }
-        .modal.active { display: flex; }
-        .modal-content { background: white; border-radius: 12px; width: 90%; max-width: 700px; max-height: 90vh; overflow-y: auto; margin: 20px; }
-        .modal-header { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center; border-radius: 12px 12px 0 0; }
-        .modal-header h3 { font-size: 20px; }
-        .modal-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; }
-        .modal-body { padding: 25px; }
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748; }
-        .form-group input, .form-group textarea { width: 100%; padding: 10px 15px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: inherit; }
-        .form-group textarea { min-height: 100px; resize: vertical; }
-        .empty-state { text-align: center; padding: 60px 20px; color: #a0aec0; }
-        .empty-state-icon { font-size: 64px; margin-bottom: 20px; }
-    </style>
+    <link rel="stylesheet" href="../css/nilai_tugas.css">
 </head>
 <body>
     <div class="navbar">
