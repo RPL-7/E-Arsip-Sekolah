@@ -18,7 +18,7 @@ $guru_data = $stmt->fetch();
 $nama_guru = $guru_data['nama_guru'];
 
 // Buat folder arsip jika belum ada
-$upload_base_dir = '../lib/';
+$upload_base_dir = '../arsip/guru/';
 $guru_folder = $upload_base_dir . $nama_guru . '/';
 
 if (!file_exists($upload_base_dir)) {
@@ -588,7 +588,7 @@ function formatSize($bytes) {
         <h1>📁 Arsip Guru</h1>
         <div class="user-info">
             <span><strong><?php echo htmlspecialchars($user_name); ?></strong></span>
-            <a href="dashboard_guru.php" class="btn btn-back">← Kembali</a>
+            <a href="../dashboard/dashboard_guru.php" class="btn btn-back">← Kembali</a>
         </div>
     </div>
 

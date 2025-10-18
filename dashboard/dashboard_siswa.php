@@ -39,6 +39,7 @@ $user_nis = $_SESSION['user_nis'];
             <div class="info-card">
                 <h3>📝 Tugas</h3>
                 <p>Lihat dan kerjakan tugas yang diberikan oleh guru</p>
+                <a href="../tugas/tugas_siswa.php" style="display: inline-block; margin-top: 10px; padding: 8px 16px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-size: 14px;">Lihat Tugas →</a>
             </div>
             <div class="info-card">
                 <h3>📊 Nilai</h3>

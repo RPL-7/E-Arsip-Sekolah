@@ -39,6 +39,7 @@ $user_id = $_SESSION['user_id'];
             <div class="info-card">
                 <h3>📝 Tugas & Materi</h3>
                 <p>Buat dan kelola tugas serta materi pembelajaran</p>
+                <a href="../tugas/tugas_guru.php" style="display: inline-block; margin-top: 10px; padding: 8px 16px; background: #11998e; color: white; text-decoration: none; border-radius: 6px; font-size: 14px;">Kelola Tugas →</a>
             </div>
             <div class="info-card">
                 <h3>📊 Penilaian</h3>
