@@ -11,57 +11,154 @@ $user_id = $_SESSION['user_id'];
 // Koneksi database
 $pdo = getDBConnection();
 
-// Ambil data siswa
-$stmt = $pdo->prepare("SELECT id_kelas, nama_siswa, nis FROM user_siswa WHERE id_siswa = ?");
+// Ambil data siswa untuk folder
+$stmt = $pdo->prepare("SELECT nama_siswa, nis FROM user_siswa WHERE id_siswa = ?");
 $stmt->execute([$user_id]);
 $siswa_data = $stmt->fetch();
-$id_kelas = $siswa_data['id_kelas'];
 $nama_siswa = $siswa_data['nama_siswa'];
 $nis = $siswa_data['nis'];
 
-// Filter
-$search = $_GET['search'] ?? '';
-$tipe_filter = $_GET['tipe'] ?? '';
+// Buat folder arsip jika belum ada
+$upload_base_dir = '../arsip/siswa/';
+$siswa_folder = $upload_base_dir . $nis . '_' . $nama_siswa . '/';
 
-// Ambil semua arsip yang diupload oleh guru
+if (!file_exists($upload_base_dir)) {
+    mkdir($upload_base_dir, 0777, true);
+}
+
+if (!file_exists($siswa_folder)) {
+    mkdir($siswa_folder, 0777, true);
+}
+
+// Proses form
+$success_message = '';
+$error_message = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+    
+    if ($action === 'upload') {
+        try {
+            $judul_arsip = trim($_POST['judul_arsip']);
+            
+            // Validasi
+            if (empty($judul_arsip)) {
+                throw new Exception("Judul arsip wajib diisi!");
+            }
+            
+            if (!isset($_FILES['file']) || $_FILES['file']['error'] === UPLOAD_ERR_NO_FILE) {
+                throw new Exception("File wajib dipilih!");
+            }
+            
+            $file = $_FILES['file'];
+            
+            // Validasi upload error
+            if ($file['error'] !== UPLOAD_ERR_OK) {
+                throw new Exception("Error saat upload file!");
+            }
+            
+            // Validasi ukuran file (max 10MB)
+            $max_size = 10 * 1024 * 1024; // 10MB
+            if ($file['size'] > $max_size) {
+                throw new Exception("Ukuran file maksimal 10MB!");
+            }
+            
+            // Validasi tipe file
+            $allowed_types = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'jpg', 'jpeg', 'png', 'zip', 'rar'];
+            $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            
+            if (!in_array($file_extension, $allowed_types)) {
+                throw new Exception("Tipe file tidak diizinkan! Hanya: " . implode(', ', $allowed_types));
+            }
+            
+            // Generate nama file unik
+            $file_name = $file['name'];
+            $unique_name = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file_name);
+            $file_path = $siswa_folder . $unique_name;
+            
+            // Upload file
+            if (!move_uploaded_file($file['tmp_name'], $file_path)) {
+                throw new Exception("Gagal mengupload file!");
+            }
+            
+            // Simpan ke database
+            $stmt = $pdo->prepare("
+                INSERT INTO arsip (judul_arsip, file_path, file_name, file_size, file_type, id_uploader, tipe_uploader)
+                VALUES (?, ?, ?, ?, ?, ?, 'siswa')
+            ");
+            
+            $stmt->execute([
+                $judul_arsip,
+                $file_path,
+                $file_name,
+                $file['size'],
+                $file_extension,
+                $user_id
+            ]);
+            
+            $success_message = "File berhasil diupload!";
+            
+        } catch (Exception $e) {
+            $error_message = $e->getMessage();
+        }
+    }
+    
+    if ($action === 'delete') {
+        try {
+            $id_arsip = $_POST['id_arsip'];
+            
+            // Ambil data arsip
+            $stmt = $pdo->prepare("SELECT * FROM arsip WHERE id_arsip = ? AND id_uploader = ? AND tipe_uploader = 'siswa'");
+            $stmt->execute([$id_arsip, $user_id]);
+            $arsip = $stmt->fetch();
+            
+            if (!$arsip) {
+                throw new Exception("File tidak ditemukan atau Anda tidak memiliki akses!");
+            }
+            
+            // Hapus file fisik
+            if (file_exists($arsip['file_path'])) {
+                unlink($arsip['file_path']);
+            }
+            
+            // Hapus dari database
+            $stmt = $pdo->prepare("DELETE FROM arsip WHERE id_arsip = ?");
+            $stmt->execute([$id_arsip]);
+            
+            $success_message = "File berhasil dihapus!";
+            
+        } catch (Exception $e) {
+            $error_message = $e->getMessage();
+        }
+    }
+}
+
+// Ambil semua arsip siswa
+$search = $_GET['search'] ?? '';
+
 $query = "
-    SELECT a.*, g.nama_guru
-    FROM arsip a
-    JOIN user_guru g ON a.id_uploader = g.id_guru
-    WHERE a.tipe_uploader = 'guru'
+    SELECT * FROM arsip 
+    WHERE id_uploader = ? AND tipe_uploader = 'siswa'
 ";
-$params = [];
+$params = [$user_id];
 
 if (!empty($search)) {
-    $query .= " AND (a.judul_arsip LIKE ? OR a.file_name LIKE ? OR g.nama_guru LIKE ?)";
+    $query .= " AND (judul_arsip LIKE ? OR file_name LIKE ?)";
     $search_term = "%$search%";
     $params[] = $search_term;
     $params[] = $search_term;
-    $params[] = $search_term;
 }
 
-if (!empty($tipe_filter)) {
-    $query .= " AND a.file_type = ?";
-    $params[] = $tipe_filter;
-}
-
-$query .= " ORDER BY a.tanggal_upload DESC";
+$query .= " ORDER BY tanggal_upload DESC";
 
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $all_arsip = $stmt->fetchAll();
 
 // Hitung total ukuran file
-$stmt = $pdo->prepare("SELECT COUNT(*) as total_files, SUM(file_size) as total_size FROM arsip WHERE tipe_uploader = 'guru'");
-$stmt->execute();
-$stats = $stmt->fetch();
-$total_files = $stats['total_files'];
-$total_size = $stats['total_size'] ?? 0;
-
-// Ambil daftar tipe file untuk filter
-$stmt = $pdo->prepare("SELECT DISTINCT file_type FROM arsip WHERE tipe_uploader = 'guru' ORDER BY file_type");
-$stmt->execute();
-$file_types = $stmt->fetchAll(PDO::FETCH_COLUMN);
+$stmt = $pdo->prepare("SELECT SUM(file_size) as total_size FROM arsip WHERE id_uploader = ? AND tipe_uploader = 'siswa'");
+$stmt->execute([$user_id]);
+$total_size = $stmt->fetch()['total_size'] ?? 0;
 
 // Function untuk format ukuran file
 function formatSize($bytes) {
@@ -81,7 +178,7 @@ function formatSize($bytes) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arsip Pembelajaran - Siswa</title>
+    <title>Arsip Siswa - <?php echo htmlspecialchars($nama_siswa); ?></title>
     <style>
         * {
             margin: 0;
@@ -145,6 +242,15 @@ function formatSize($bytes) {
             background: #2dd36f;
         }
         
+        .btn-danger {
+            background: #f5576c;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #e94560;
+        }
+        
         .btn-info {
             background: #26c6da;
             color: white;
@@ -181,16 +287,19 @@ function formatSize($bytes) {
         }
         
         .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 30px;
         }
         
-        .page-header h2 {
+        .page-header-text h2 {
             color: #2d3748;
             font-size: 28px;
             margin-bottom: 5px;
         }
         
-        .page-header p {
+        .page-header-text p {
             color: #718096;
         }
         
@@ -243,24 +352,120 @@ function formatSize($bytes) {
             padding: 25px;
         }
         
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            color: #2d3748;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+        
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+        
+        .file-input-label {
+            display: block;
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border: 2px dashed #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .file-input-label:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        
+        .file-name {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+        
+        .info-box h4 {
+            color: #1976d2;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+        
+        .info-box ul {
+            color: #424242;
+            font-size: 14px;
+            line-height: 1.8;
+            margin-left: 20px;
+        }
+        
         .filter-bar {
             display: flex;
             gap: 15px;
             margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        
-        .filter-bar input,
-        .filter-bar select {
-            padding: 10px 15px;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 14px;
         }
         
         .filter-bar input {
             flex: 1;
-            min-width: 250px;
+            padding: 10px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
         }
         
         .file-grid {
@@ -275,6 +480,7 @@ function formatSize($bytes) {
             border-radius: 12px;
             padding: 20px;
             transition: all 0.3s ease;
+            cursor: pointer;
         }
         
         .file-card:hover {
@@ -315,18 +521,54 @@ function formatSize($bytes) {
             font-size: 12px;
         }
         
-        .info-box {
-            background: #e3f2fd;
-            border-left: 4px solid #2196f3;
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 8px;
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
         }
         
-        .info-box p {
-            color: #1976d2;
-            font-size: 14px;
-            line-height: 1.6;
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 12px 12px 0 0;
+        }
+        
+        .modal-header h3 {
+            font-size: 20px;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        
+        .modal-body {
+            padding: 25px;
         }
         
         @media (max-width: 768px) {
@@ -334,72 +576,105 @@ function formatSize($bytes) {
                 grid-template-columns: 1fr;
             }
             
-            .filter-bar {
+            .page-header {
                 flex-direction: column;
-            }
-            
-            .filter-bar input {
-                min-width: 100%;
+                align-items: flex-start;
+                gap: 15px;
             }
         }
     </style>
 </head>
 <body>
     <div class="navbar">
-        <h1>📚 Arsip Pembelajaran</h1>
+        <h1>📁 Arsip Saya</h1>
         <div class="user-info">
-            <span><strong><?php echo htmlspecialchars($nama_siswa); ?></strong> (<?php echo htmlspecialchars($nis); ?>)</span>
+            <span><strong><?php echo htmlspecialchars($user_name); ?></strong> (<?php echo htmlspecialchars($nis); ?>)</span>
             <a href="../dashboard/dashboard_siswa.php" class="btn btn-back">← Kembali</a>
         </div>
     </div>
 
     <div class="container">
         <div class="page-header">
-            <h2>Arsip & Materi Pembelajaran</h2>
-            <p>Akses semua materi dan file dari guru</p>
+            <div class="page-header-text">
+                <h2>Manajemen Arsip Pribadi</h2>
+                <p>Upload dan kelola file arsip pribadi Anda</p>
+            </div>
         </div>
+
+        <?php if ($success_message): ?>
+        <div class="alert alert-success"><?php echo $success_message; ?></div>
+        <?php endif; ?>
+        
+        <?php if ($error_message): ?>
+        <div class="alert alert-danger"><?php echo $error_message; ?></div>
+        <?php endif; ?>
 
         <!-- Statistics -->
         <div class="stats-row">
             <div class="stat-card">
-                <h3>Total Arsip</h3>
-                <div class="number"><?php echo $total_files; ?></div>
+                <h3>Total File</h3>
+                <div class="number"><?php echo count($all_arsip); ?></div>
             </div>
             <div class="stat-card" style="border-left-color: #38ef7d;">
                 <h3>Total Ukuran</h3>
                 <div class="number" style="color: #38ef7d; font-size: 20px;"><?php echo formatSize($total_size); ?></div>
             </div>
             <div class="stat-card" style="border-left-color: #ffa726;">
-                <h3>Hasil Pencarian</h3>
-                <div class="number" style="color: #ffa726;"><?php echo count($all_arsip); ?></div>
+                <h3>Folder</h3>
+                <div class="number" style="color: #ffa726; font-size: 18px;"><?php echo htmlspecialchars($nis); ?></div>
             </div>
         </div>
 
-        <div class="info-box">
-            <p>
-                💡 <strong>Info:</strong> Semua materi dan file di sini diupload oleh guru. 
-                Anda dapat melihat, mendownload, dan mempelajari materi yang tersedia.
-            </p>
+        <!-- Form Upload -->
+        <div class="card">
+            <div class="card-header">
+                <h3>📤 Upload File Baru</h3>
+            </div>
+            <div class="card-body">
+                <div class="info-box">
+                    <h4>ℹ️ Ketentuan Upload</h4>
+                    <ul>
+                        <li>Ukuran file maksimal: <strong>10MB</strong></li>
+                        <li>Tipe file yang diizinkan: <strong>PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, PNG, ZIP, RAR</strong></li>
+                        <li>File akan disimpan di folder pribadi Anda: <strong>arsip/siswa/<?php echo htmlspecialchars($nis); ?>/</strong></li>
+                        <li>Gunakan untuk menyimpan: <strong>Catatan, Tugas, Materi, atau File Penting Lainnya</strong></li>
+                    </ul>
+                </div>
+
+                <form method="POST" action="" enctype="multipart/form-data">
+                    <input type="hidden" name="action" value="upload">
+                    
+                    <div class="form-group">
+                        <label>Judul Arsip <span style="color: red;">*</span></label>
+                        <input type="text" name="judul_arsip" required placeholder="Contoh: Catatan Matematika, Tugas IPA, dll">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Pilih File <span style="color: red;">*</span></label>
+                        <div class="file-input-wrapper">
+                            <input type="file" name="file" id="file" required onchange="displayFileName()">
+                            <label for="file" class="file-input-label">
+                                📁 Klik untuk memilih file
+                            </label>
+                            <div class="file-name" id="file-name"></div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success">✓ Upload File</button>
+                </form>
+            </div>
         </div>
 
         <!-- Daftar Arsip -->
         <div class="card">
             <div class="card-header">
-                <h3>📂 Daftar Arsip</h3>
+                <h3>📂 Daftar Arsip Saya</h3>
             </div>
             <div class="card-body">
                 <form method="GET" class="filter-bar">
-                    <input type="text" name="search" placeholder="Cari judul, nama file, atau nama guru..." value="<?php echo htmlspecialchars($search); ?>">
-                    <select name="tipe">
-                        <option value="">Semua Tipe File</option>
-                        <?php foreach ($file_types as $type): ?>
-                        <option value="<?php echo htmlspecialchars($type); ?>" <?php echo $tipe_filter === $type ? 'selected' : ''; ?>>
-                            <?php echo strtoupper($type); ?>
-                        </option>
-                        <?php endforeach; ?>
-                    </select>
+                    <input type="text" name="search" placeholder="Cari judul atau nama file..." value="<?php echo htmlspecialchars($search); ?>">
                     <button type="submit" class="btn btn-primary">🔍 Cari</button>
-                    <?php if (!empty($search) || !empty($tipe_filter)): ?>
+                    <?php if (!empty($search)): ?>
                     <a href="arsip_siswa.php" class="btn btn-secondary">Reset</a>
                     <?php endif; ?>
                 </form>
@@ -429,9 +704,6 @@ function formatSize($bytes) {
                                 📎 <?php echo htmlspecialchars($arsip['file_name']); ?>
                             </div>
                             <div class="file-meta">
-                                👨‍🏫 <?php echo htmlspecialchars($arsip['nama_guru']); ?>
-                            </div>
-                            <div class="file-meta">
                                 💾 <?php echo formatSize($arsip['file_size']); ?> • <?php echo strtoupper($arsip['file_type']); ?>
                             </div>
                             <div class="file-meta">
@@ -445,31 +717,91 @@ function formatSize($bytes) {
                             <a href="<?php echo htmlspecialchars($arsip['file_path']); ?>" download class="btn btn-success btn-sm">
                                 ⬇️ Download
                             </a>
+                            <button class="btn btn-danger btn-sm" onclick="deleteFile(<?php echo $arsip['id_arsip']; ?>, '<?php echo htmlspecialchars($arsip['judul_arsip']); ?>')">
+                                🗑️ Hapus
+                            </button>
                         </div>
                     </div>
                     <?php endforeach; ?>
                 </div>
                 <?php else: ?>
-                <div style="text-align: center; padding: 60px 20px; color: #a0aec0;">
-                    <div style="font-size: 64px; margin-bottom: 20px;">📭</div>
-                    <h3 style="margin-bottom: 10px; color: #718096;">
-                        <?php if (!empty($search) || !empty($tipe_filter)): ?>
-                        Tidak Ada Hasil
-                        <?php else: ?>
-                        Belum Ada Arsip
-                        <?php endif; ?>
-                    </h3>
-                    <p>
-                        <?php if (!empty($search) || !empty($tipe_filter)): ?>
-                        Coba ubah kata kunci pencarian atau filter Anda
-                        <?php else: ?>
-                        Belum ada file arsip yang diupload oleh guru
-                        <?php endif; ?>
-                    </p>
+                <div style="text-align: center; padding: 40px; color: #a0aec0;">
+                    <div style="font-size: 64px; margin-bottom: 20px;">📁</div>
+                    <p>Belum ada file arsip</p>
+                    <p style="font-size: 14px; margin-top: 10px;">Upload file pertama Anda di form di atas</p>
                 </div>
                 <?php endif; ?>
             </div>
         </div>
     </div>
+
+    <!-- Modal Delete -->
+    <div class="modal" id="deleteModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🗑️ Konfirmasi Hapus</h3>
+                <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 20px; color: #2d3748;">
+                    Apakah Anda yakin ingin menghapus file <strong id="delete_file_name"></strong>?
+                </p>
+                <p style="color: #e53e3e; font-size: 14px; margin-bottom: 20px;">
+                    ⚠️ File yang sudah dihapus tidak dapat dikembalikan!
+                </p>
+                <form method="POST" action="">
+                    <input type="hidden" name="action" value="delete">
+                    <input type="hidden" name="id_arsip" id="delete_id_arsip">
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" class="btn btn-danger">Hapus</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Batal</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function displayFileName() {
+            const input = document.getElementById('file');
+            const fileNameDisplay = document.getElementById('file-name');
+            
+            if (input.files.length > 0) {
+                const file = input.files[0];
+                const size = (file.size / 1024 / 1024).toFixed(2);
+                fileNameDisplay.textContent = `📎 ${file.name} (${size} MB)`;
+            } else {
+                fileNameDisplay.textContent = '';
+            }
+        }
+        
+        function deleteFile(id, nama) {
+            document.getElementById('delete_id_arsip').value = id;
+            document.getElementById('delete_file_name').textContent = nama;
+            document.getElementById('deleteModal').classList.add('active');
+        }
+        
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('active');
+        }
+        
+        window.onclick = function(event) {
+            const deleteModal = document.getElementById('deleteModal');
+            if (event.target === deleteModal) {
+                closeDeleteModal();
+            }
+        }
+        
+        setTimeout(function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(function(alert) {
+                alert.style.transition = 'opacity 0.5s';
+                alert.style.opacity = '0';
+                setTimeout(function() {
+                    alert.style.display = 'none';
+                }, 500);
+            });
+        }, 5000);
+    </script>
 </body>
 </html>
