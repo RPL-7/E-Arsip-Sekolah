@@ -35,6 +35,7 @@ $user_nis = $_SESSION['user_nis'];
             <div class="info-card">
                 <h3>📚 Profil Saya</h3>
                 <p>Kelola informasi profil dan data pribadi Anda</p>
+                <a href="../profil/profil_siswa.php" style="display: inline-block; margin-top: 10px; padding: 8px 16px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-size: 14px;">Lihat Profil →</a>
             </div>
             <div class="info-card">
                 <h3>📝 Tugas</h3>

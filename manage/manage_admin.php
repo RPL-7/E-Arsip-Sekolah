@@ -50,13 +50,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         if ($stmt->fetchColumn() > 0) {
             throw new Exception("Email sudah terdaftar!");
         }
-        
-        // Hash password
-        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-        
+                
         // Insert admin
         $stmt = $pdo->prepare("INSERT INTO admin (username, nama_admin, email, password) VALUES (?, ?, ?, ?)");
-        $stmt->execute([$username, $nama_admin, $email, $hashed_password]);
+        $stmt->execute([$username, $nama_admin, $email, $password]);
         
         $success_message = "Admin baru berhasil ditambahkan!";
         
