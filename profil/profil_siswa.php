@@ -239,7 +239,7 @@ $tugas_dikumpulkan = $stats['tugas_dikumpulkan'] ?? 0;
                     <a href="../tugas/tugas_siswa.php" class="btn btn-primary" style="text-align: center;">
                         📝 Lihat Tugas
                     </a>
-                    <a href="../tugas/nilai_siswa.php" class="btn btn-primary" style="text-align: center; background: #38ef7d;">
+                    <a href="../nilai/nilai_siswa.php" class="btn btn-primary" style="text-align: center; background: #38ef7d;">
                         📊 Lihat Nilai
                     </a>
                     <a href="../arsip/arsip_siswa.php" class="btn btn-primary" style="text-align: center; background: #ffa726;">

@@ -107,12 +107,9 @@ try {
             <a href="../manage/manage_admin.php" class="menu-item">
                 <span>👤</span> Manajemen Admin
             </a>
-            <a href="#" class="menu-item">
-                <span>📊</span> Laporan
-            </a>
-            <a href="#" class="menu-item">
+            <!-- <a href="#" class="menu-item">
                 <span>⚙️</span> Pengaturan
-            </a>
+            </a> -->
         </aside>
 
         <main class="main-content">

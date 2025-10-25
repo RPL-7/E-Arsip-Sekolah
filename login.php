@@ -86,7 +86,7 @@ try {
             $stmt = $pdo->prepare("
                 SELECT id_guru, nip, nama_guru, password_login, email, status 
                 FROM user_guru 
-                WHERE id_guru = :identifier
+                WHERE nip = :identifier
             ");
             $stmt->execute(['identifier' => $identifier]);
             $user_data = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -119,13 +119,13 @@ try {
                 } else {
                     echo json_encode([
                         'success' => false,
-                        'message' => 'ID Guru atau password salah!'
+                        'message' => 'NIP Guru atau password salah!'
                     ]);
                 }
             } else {
                 echo json_encode([
                     'success' => false,
-                    'message' => 'ID Guru tidak ditemukan!'
+                    'message' => 'NIP Guru tidak ditemukan!'
                 ]);
             }
             break;
