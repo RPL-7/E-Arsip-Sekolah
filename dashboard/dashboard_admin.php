@@ -101,7 +101,7 @@ try {
             <a href="../manage/manage_pelajaran.php" class="menu-item">
                 <span>📚</span> Manajemen Pelajaran
             </a>
-            <a href="#" class="menu-item">
+            <a href="../manage/manage_arsip.php" class="menu-item">
                 <span>📁</span> Manajemen Arsip
             </a>
             <a href="#" class="menu-item">
