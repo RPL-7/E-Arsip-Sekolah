@@ -43,7 +43,8 @@ $user_id = $_SESSION['user_id'];
             </div>
             <div class="info-card">
                 <h3>📊 Penilaian</h3>
-                <p>Input dan kelola nilai siswa</p>
+                <p>Lihat rekap nilai dan penilaian tugas siswa</p>
+                <a href="../nilai/penilaian.php" style="display: inline-block; margin-top: 10px; padding: 8px 16px; background: #11998e; color: white; text-decoration: none; border-radius: 6px; font-size: 14px;">Rekap Nilai →</a>
             </div>
             <div class="info-card">
                 <h3>📁 Arsip</h3>

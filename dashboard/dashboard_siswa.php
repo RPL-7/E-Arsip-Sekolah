@@ -44,6 +44,7 @@ $user_nis = $_SESSION['user_nis'];
             <div class="info-card">
                 <h3>📊 Nilai</h3>
                 <p>Lihat nilai dan hasil evaluasi pembelajaran</p>
+                <a href="../nilai/nilai_siswa.php" style="display: inline-block; margin-top: 10px; padding: 8px 16px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-size: 14px;">Lihat Nilai →</a>
             </div>
             <div class="info-card">
                 <h3>📁 Arsip</h3>
