@@ -55,10 +55,10 @@ $user_id = $_SESSION['user_id'];
                 <h3>🏫 Kelas Wali</h3>
                 <p>Kelola kelas yang menjadi wali kelas Anda</p>
             </div>
-            <div class="info-card">
+            <!-- <div class="info-card">
                 <h3>📅 Jadwal Mengajar</h3>
                 <p>Lihat dan kelola jadwal mengajar Anda</p>
-            </div>
+            </div> -->
         </div>
     </div>
 </body>

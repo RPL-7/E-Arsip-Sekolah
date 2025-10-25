@@ -104,7 +104,7 @@ try {
             <a href="../manage/manage_arsip.php" class="menu-item">
                 <span>📁</span> Manajemen Arsip
             </a>
-            <a href="..//manage/manage_admin.php" class="menu-item">
+            <a href="../manage/manage_admin.php" class="menu-item">
                 <span>👤</span> Manajemen Admin
             </a>
             <a href="#" class="menu-item">
