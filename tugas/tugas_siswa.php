@@ -102,98 +102,137 @@ if (!$id_kelas) {
 } else {
     $error_no_class = false;
     
-    // Ambil semua tugas
+    // Ambil semua tugas DAN materi (DIPERBAIKI)
     $search = $_GET['search'] ?? '';
     $status_filter = $_GET['status'] ?? '';
     $pelajaran_filter = $_GET['pelajaran'] ?? '';
+    $tipe_filter = $_GET['tipe'] ?? '';
     
-    $query = "SELECT t.*, p.nama_pelajaran, g.nama_guru FROM tugas t
-              JOIN pelajaran p ON t.id_pelajaran = p.id_pelajaran
-              JOIN user_guru g ON t.id_guru = g.id_guru
-              WHERE t.id_kelas = ?";
-    $params = [$id_kelas];
+    // Query untuk tugas
+    $query_tugas = "
+        SELECT 'tugas' as tipe, t.id_tugas as id, t.judul_tugas as judul, t.deskripsi, t.tanggal_dibuat, t.deadline, t.status, t.file_path, t.file_name,
+               t.file_jawaban, t.nilai_siswa,
+               p.nama_pelajaran, g.nama_guru
+        FROM tugas t
+        JOIN pelajaran p ON t.id_pelajaran = p.id_pelajaran
+        JOIN user_guru g ON t.id_guru = g.id_guru
+        WHERE t.id_kelas = ?
+    ";
     
+    // Query untuk materi
+    $query_materi = "
+        SELECT 'materi' as tipe, m.id_materi as id, m.judul_materi as judul, m.deskripsi, m.tanggal_dibuat, NULL as deadline, m.status, m.file_path, m.file_name,
+               NULL as file_jawaban, NULL as nilai_siswa,
+               p.nama_pelajaran, g.nama_guru
+        FROM materi m
+        JOIN pelajaran p ON m.id_pelajaran = p.id_pelajaran
+        JOIN user_guru g ON m.id_guru = g.id_guru
+        WHERE m.id_kelas = ?
+    ";
+    
+    $params = [$id_kelas, $id_kelas];
+    
+    $where_conditions = [];
     if (!empty($search)) {
-        $query .= " AND (t.judul_tugas LIKE ? OR p.nama_pelajaran LIKE ?)";
-        $params[] = "%$search%";
-        $params[] = "%$search%";
-    }
-    
-    if (!empty($status_filter)) {
-        if ($status_filter === 'sudah_kumpul') {
-            // Filter di PHP nanti
-        } elseif ($status_filter === 'belum_kumpul') {
-            // Filter di PHP nanti
-        } else {
-            $query .= " AND t.status = ?";
-            $params[] = $status_filter;
-        }
+        $where_conditions[] = "(judul LIKE ? OR nama_pelajaran LIKE ?)";
     }
     
     if (!empty($pelajaran_filter)) {
-        $query .= " AND t.id_pelajaran = ?";
-        $params[] = $pelajaran_filter;
+        $where_conditions[] = "id_pelajaran = ?";
     }
     
-    $query .= " ORDER BY t.tanggal_dibuat DESC";
+    // Gabungkan query
+    $query = "SELECT * FROM (($query_tugas) UNION ALL ($query_materi)) as combined WHERE 1=1";
+    
+    if (!empty($where_conditions)) {
+        $query .= " AND " . implode(" AND ", $where_conditions);
+    }
+    
+    if (!empty($tipe_filter)) {
+        $query .= " AND tipe = ?";
+    }
+    
+    $query .= " ORDER BY tanggal_dibuat DESC";
     
     $stmt = $pdo->prepare($query);
-    $stmt->execute($params);
-    $all_tugas = $stmt->fetchAll();
     
-    // Proses data tugas (tambahkan info pengumpulan)
-    foreach ($all_tugas as &$tugas) {
-        $file_jawaban = json_decode($tugas['file_jawaban'] ?? '[]', true);
-        $nilai_siswa = json_decode($tugas['nilai_siswa'] ?? '[]', true);
+    $exec_params = [$id_kelas, $id_kelas];
+    if (!empty($search)) {
+        $search_term = "%$search%";
+        $exec_params[] = $search_term;
+        $exec_params[] = $search_term;
+    }
+    if (!empty($pelajaran_filter)) {
+        $exec_params[] = $pelajaran_filter;
+    }
+    if (!empty($tipe_filter)) {
+        $exec_params[] = $tipe_filter;
+    }
+    
+    $stmt->execute($exec_params);
+    $all_items = $stmt->fetchAll();
+    
+    // Proses data (tambahkan info pengumpulan untuk tugas)
+    foreach ($all_items as &$item) {
+        $item['sudah_kumpul'] = false;
+        $item['data_kumpul'] = null;
+        $item['nilai'] = null;
         
-        $tugas['sudah_kumpul'] = false;
-        $tugas['data_kumpul'] = null;
-        $tugas['nilai'] = null;
-        
-        foreach ($file_jawaban as $fw) {
-            if ($fw['id_siswa'] == $user_id) {
-                $tugas['sudah_kumpul'] = true;
-                $tugas['data_kumpul'] = $fw;
-                break;
+        // Hanya proses untuk tugas
+        if ($item['tipe'] === 'tugas') {
+            $file_jawaban = json_decode($item['file_jawaban'] ?? '[]', true);
+            $nilai_siswa = json_decode($item['nilai_siswa'] ?? '[]', true);
+            
+            foreach ($file_jawaban as $fw) {
+                if ($fw['id_siswa'] == $user_id) {
+                    $item['sudah_kumpul'] = true;
+                    $item['data_kumpul'] = $fw;
+                    break;
+                }
             }
-        }
-        
-        foreach ($nilai_siswa as $ns) {
-            if ($ns['id_siswa'] == $user_id) {
-                $tugas['nilai'] = $ns;
-                break;
+            
+            foreach ($nilai_siswa as $ns) {
+                if ($ns['id_siswa'] == $user_id) {
+                    $item['nilai'] = $ns;
+                    break;
+                }
             }
         }
     }
-    unset($tugas); //Supaya PHP tidak lagi mereferensikan elemen terakhir.
+    unset($item);
     
-    // Filter berdasarkan status pengumpulan
+    // Filter berdasarkan status pengumpulan (hanya untuk tugas)
     if ($status_filter === 'sudah_kumpul') {
-        $all_tugas = array_filter($all_tugas, fn($t) => $t['sudah_kumpul']);
+        $all_items = array_filter($all_items, fn($t) => $t['tipe'] === 'tugas' && $t['sudah_kumpul']);
     } elseif ($status_filter === 'belum_kumpul') {
-        $all_tugas = array_filter($all_tugas, fn($t) => !$t['sudah_kumpul'] && $t['status'] === 'aktif');
+        $all_items = array_filter($all_items, fn($t) => $t['tipe'] === 'tugas' && !$t['sudah_kumpul'] && $t['status'] === 'aktif');
     }
     
     // Ambil pelajaran untuk filter
     $stmt = $pdo->prepare("
         SELECT DISTINCT p.id_pelajaran, p.nama_pelajaran
-        FROM tugas t
-        JOIN pelajaran p ON t.id_pelajaran = p.id_pelajaran
-        WHERE t.id_kelas = ?
+        FROM (
+            SELECT id_pelajaran FROM tugas WHERE id_kelas = ?
+            UNION
+            SELECT id_pelajaran FROM materi WHERE id_kelas = ?
+        ) as combined
+        JOIN pelajaran p ON combined.id_pelajaran = p.id_pelajaran
         ORDER BY p.nama_pelajaran
     ");
-    $stmt->execute([$id_kelas]);
+    $stmt->execute([$id_kelas, $id_kelas]);
     $pelajaran_list = $stmt->fetchAll();
     
     // Statistik
     $total_aktif = 0;
+    $total_materi = 0;
     $sudah_kumpul = 0;
     $sudah_dinilai = 0;
     
-    foreach ($all_tugas as $t) {
-        if ($t['status'] === 'aktif') $total_aktif++;
-        if ($t['sudah_kumpul']) $sudah_kumpul++;
-        if ($t['nilai']) $sudah_dinilai++;
+    foreach ($all_items as $t) {
+        if ($t['tipe'] === 'tugas' && $t['status'] === 'aktif') $total_aktif++;
+        if ($t['tipe'] === 'materi') $total_materi++;
+        if ($t['tipe'] === 'tugas' && $t['sudah_kumpul']) $sudah_kumpul++;
+        if ($t['tipe'] === 'tugas' && $t['nilai']) $sudah_dinilai++;
     }
 }
 ?>
@@ -202,7 +241,7 @@ if (!$id_kelas) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tugas Saya - Siswa</title>
+    <title>Tugas & Materi - Siswa</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f7fa; }
@@ -238,6 +277,7 @@ if (!$id_kelas) {
         .tugas-card:hover { border-color: #667eea; box-shadow: 0 5px 15px rgba(102,126,234,0.1); transform: translateY(-2px); }
         .tugas-card.submitted { border-color: #38ef7d; background: #f0fdf4; }
         .tugas-card.graded { border-color: #ffa726; background: #fffbf0; }
+        .tugas-card.materi { border-color: #26c6da; background: #f0fdff; }
         .tugas-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px; }
         .tugas-title h4 { color: #2d3748; font-size: 18px; margin-bottom: 5px; }
         .badge { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
@@ -245,6 +285,7 @@ if (!$id_kelas) {
         .badge-warning { background: #fff3cd; color: #856404; }
         .badge-danger { background: #f8d7da; color: #721c24; }
         .badge-info { background: #d1ecf1; color: #0c5460; }
+        .badge-materi { background: #d1f2eb; color: #0a6552; }
         .tugas-meta { font-size: 13px; color: #718096; margin-bottom: 12px; }
         .tugas-meta div { margin-bottom: 8px; }
         .tugas-desc { color: #2d3748; font-size: 14px; line-height: 1.6; margin-bottom: 15px; max-height: 60px; overflow: hidden; }
@@ -270,7 +311,7 @@ if (!$id_kelas) {
 </head>
 <body>
     <div class="navbar">
-        <h1>📚 Tugas Saya</h1>
+        <h1>📚 Tugas & Materi</h1>
         <div class="user-info">
             <span><strong><?php echo htmlspecialchars($nama_siswa); ?></strong> (<?php echo htmlspecialchars($nis); ?>)</span>
             <a href="../dashboard/dashboard_siswa.php" class="btn btn-back">← Kembali</a>
@@ -280,7 +321,7 @@ if (!$id_kelas) {
     <div class="container">
         <?php if (isset($_SESSION['success'])): ?>
         <div class="alert alert-success">
-            <strong>✓ Berhasil!</strong> <?php echo $_SESSION['success']; unset($_SESSION['success']); ?>
+            <strong>✔ Berhasil!</strong> <?php echo $_SESSION['success']; unset($_SESSION['success']); ?>
         </div>
         <?php endif; ?>
         
@@ -303,6 +344,10 @@ if (!$id_kelas) {
                 <h3>Tugas Aktif</h3>
                 <div class="number"><?php echo $total_aktif; ?></div>
             </div>
+            <div class="stat-card" style="border-left-color: #26c6da;">
+                <h3>Materi Tersedia</h3>
+                <div class="number" style="color: #26c6da;"><?php echo $total_materi; ?></div>
+            </div>
             <div class="stat-card" style="border-left-color: #38ef7d;">
                 <h3>Sudah Dikumpulkan</h3>
                 <div class="number" style="color: #38ef7d;"><?php echo $sudah_kumpul; ?></div>
@@ -317,7 +362,7 @@ if (!$id_kelas) {
         <div class="card">
             <div class="card-body" style="padding: 20px;">
                 <form method="GET" class="filter-bar">
-                    <input type="text" name="search" placeholder="Cari judul tugas..." value="<?php echo htmlspecialchars($search); ?>">
+                    <input type="text" name="search" placeholder="Cari judul..." value="<?php echo htmlspecialchars($search); ?>">
                     <select name="pelajaran">
                         <option value="">Semua Pelajaran</option>
                         <?php foreach ($pelajaran_list as $pel): ?>
@@ -326,6 +371,11 @@ if (!$id_kelas) {
                         </option>
                         <?php endforeach; ?>
                     </select>
+                    <select name="tipe">
+                        <option value="">Semua Tipe</option>
+                        <option value="tugas" <?php echo $tipe_filter === 'tugas' ? 'selected' : ''; ?>>Tugas</option>
+                        <option value="materi" <?php echo $tipe_filter === 'materi' ? 'selected' : ''; ?>>Materi</option>
+                    </select>
                     <select name="status">
                         <option value="">Semua Status</option>
                         <option value="aktif" <?php echo $status_filter === 'aktif' ? 'selected' : ''; ?>>Aktif</option>
@@ -333,91 +383,100 @@ if (!$id_kelas) {
                         <option value="belum_kumpul" <?php echo $status_filter === 'belum_kumpul' ? 'selected' : ''; ?>>Belum Dikumpulkan</option>
                     </select>
                     <button type="submit" class="btn btn-primary">🔍 Cari</button>
-                    <?php if (!empty($search) || !empty($status_filter) || !empty($pelajaran_filter)): ?>
+                    <?php if (!empty($search) || !empty($status_filter) || !empty($pelajaran_filter) || !empty($tipe_filter)): ?>
                     <a href="tugas_siswa.php" class="btn btn-secondary">Reset</a>
                     <?php endif; ?>
                 </form>
             </div>
         </div>
 
-        <!-- Daftar Tugas -->
-        <?php if (count($all_tugas) > 0): ?>
+        <!-- Daftar Tugas & Materi -->
+        <?php if (count($all_items) > 0): ?>
         <div class="tugas-grid">
-            <?php foreach ($all_tugas as $tugas): ?>
+            <?php foreach ($all_items as $item): ?>
             <?php
+            $is_tugas = $item['tipe'] === 'tugas';
             $card_class = '';
             $status_badge = 'badge-success';
             $status_text = 'Aktif';
             
-            if ($tugas['nilai']) {
+            if (!$is_tugas) {
+                // Materi
+                $card_class = 'materi';
+                $status_badge = 'badge-materi';
+                $status_text = 'Materi';
+            } elseif ($item['nilai']) {
                 $card_class = 'graded';
                 $status_badge = 'badge-warning';
                 $status_text = 'Dinilai';
-            } elseif ($tugas['sudah_kumpul']) {
+            } elseif ($item['sudah_kumpul']) {
                 $card_class = 'submitted';
                 $status_badge = 'badge-info';
                 $status_text = 'Sudah Dikumpulkan';
-                if ($tugas['data_kumpul']['terlambat']) {
+                if ($item['data_kumpul']['terlambat']) {
                     $status_badge = 'badge-danger';
                     $status_text = 'Terlambat';
                 }
-            } elseif ($tugas['status'] !== 'aktif') {
+            } elseif ($item['status'] !== 'aktif') {
                 $status_badge = 'badge-secondary';
-                $status_text = ucfirst($tugas['status']);
+                $status_text = ucfirst($item['status']);
             }
             ?>
             <div class="tugas-card <?php echo $card_class; ?>">
                 <div class="tugas-header">
                     <div class="tugas-title">
-                        <h4><?php echo htmlspecialchars($tugas['judul_tugas']); ?></h4>
+                        <h4>
+                            <?php echo $is_tugas ? '📝' : '📖'; ?> 
+                            <?php echo htmlspecialchars($item['judul']); ?>
+                        </h4>
                     </div>
                     <span class="badge <?php echo $status_badge; ?>"><?php echo $status_text; ?></span>
                 </div>
                 
                 <div class="tugas-meta">
-                    <div>📚 <?php echo htmlspecialchars($tugas['nama_pelajaran']); ?></div>
-                    <div>👨‍🏫 <?php echo htmlspecialchars($tugas['nama_guru']); ?></div>
-                    <div>📅 Dibuat: <?php echo date('d/m/Y H:i', strtotime($tugas['tanggal_dibuat'])); ?></div>
-                    <?php if ($tugas['deadline']): ?>
-                    <div>⏰ Deadline: <?php echo date('d/m/Y H:i', strtotime($tugas['deadline'])); ?></div>
+                    <div>📚 <?php echo htmlspecialchars($item['nama_pelajaran']); ?></div>
+                    <div>👨‍🏫 <?php echo htmlspecialchars($item['nama_guru']); ?></div>
+                    <div>📅 Dibuat: <?php echo date('d/m/Y H:i', strtotime($item['tanggal_dibuat'])); ?></div>
+                    <?php if ($is_tugas && $item['deadline']): ?>
+                    <div>⏰ Deadline: <?php echo date('d/m/Y H:i', strtotime($item['deadline'])); ?></div>
                     <?php endif; ?>
-                    <?php if ($tugas['sudah_kumpul']): ?>
+                    <?php if ($is_tugas && $item['sudah_kumpul']): ?>
                     <div style="color: #38ef7d; font-weight: 600;">
-                        ✓ Dikumpulkan: <?php echo date('d/m/Y H:i', strtotime($tugas['data_kumpul']['tanggal_upload'])); ?>
+                        ✓ Dikumpulkan: <?php echo date('d/m/Y H:i', strtotime($item['data_kumpul']['tanggal_upload'])); ?>
                     </div>
                     <?php endif; ?>
                 </div>
                 
-                <?php if ($tugas['deskripsi']): ?>
+                <?php if ($item['deskripsi']): ?>
                 <div class="tugas-desc">
-                    <?php echo nl2br(htmlspecialchars($tugas['deskripsi'])); ?>
+                    <?php echo nl2br(htmlspecialchars($item['deskripsi'])); ?>
                 </div>
                 <?php endif; ?>
                 
-                <?php if ($tugas['nilai']): ?>
+                <?php if ($is_tugas && $item['nilai']): ?>
                 <div class="nilai-display">
-                    🏆 Nilai: <?php echo number_format($tugas['nilai']['nilai'], 2); ?>
+                    🏆 Nilai: <?php echo number_format($item['nilai']['nilai'], 2); ?>
                 </div>
-                <?php if ($tugas['nilai']['catatan']): ?>
+                <?php if ($item['nilai']['catatan']): ?>
                 <div style="background: #f7fafc; padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 13px;">
-                    💬 <strong>Catatan:</strong> <?php echo nl2br(htmlspecialchars($tugas['nilai']['catatan'])); ?>
+                    💬 <strong>Catatan:</strong> <?php echo nl2br(htmlspecialchars($item['nilai']['catatan'])); ?>
                 </div>
                 <?php endif; ?>
                 <?php endif; ?>
                 
                 <div class="tugas-actions">
-                    <?php if ($tugas['file_path']): ?>
-                    <a href="<?php echo htmlspecialchars($tugas['file_path']); ?>" target="_blank" class="btn btn-success btn-sm">
-                        📥 Download Materi
+                    <?php if ($item['file_path']): ?>
+                    <a href="<?php echo htmlspecialchars($item['file_path']); ?>" target="_blank" class="btn btn-success btn-sm">
+                        📥 Download <?php echo $is_tugas ? 'Materi' : 'File'; ?>
                     </a>
                     <?php endif; ?>
-                    <?php if (!$tugas['sudah_kumpul'] && $tugas['status'] == 'aktif'): ?>
-                    <button class="btn btn-primary btn-sm" onclick="uploadTugas(<?php echo $tugas['id_tugas']; ?>, '<?php echo htmlspecialchars($tugas['judul_tugas']); ?>')">
+                    <?php if ($is_tugas && !$item['sudah_kumpul'] && $item['status'] == 'aktif'): ?>
+                    <button class="btn btn-primary btn-sm" onclick="uploadTugas(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['judul']); ?>')">
                         📤 Kumpulkan Tugas
                     </button>
                     <?php endif; ?>
-                    <?php if ($tugas['sudah_kumpul']): ?>
-                    <a href="<?php echo htmlspecialchars($tugas['data_kumpul']['file_path']); ?>" target="_blank" class="btn btn-info btn-sm">
+                    <?php if ($is_tugas && $item['sudah_kumpul']): ?>
+                    <a href="<?php echo htmlspecialchars($item['data_kumpul']['file_path']); ?>" target="_blank" class="btn btn-info btn-sm">
                         📄 Lihat File Saya
                     </a>
                     <?php endif; ?>
@@ -429,8 +488,8 @@ if (!$id_kelas) {
         <div class="card">
             <div class="card-body" style="text-align: center; padding: 60px 20px; color: #a0aec0;">
                 <div style="font-size: 64px; margin-bottom: 20px;">📚</div>
-                <h3 style="margin-bottom: 10px; color: #718096;">Belum Ada Tugas</h3>
-                <p>Belum ada tugas dari guru untuk kelas Anda</p>
+                <h3 style="margin-bottom: 10px; color: #718096;">Belum Ada Data</h3>
+                <p>Belum ada tugas atau materi dari guru untuk kelas Anda</p>
             </div>
         </div>
         <?php endif; ?>
@@ -490,6 +549,18 @@ if (!$id_kelas) {
                 closeUploadModal();
             }
         }
+        
+        // Auto hide alerts after 5 seconds
+        setTimeout(function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(function(alert) {
+                alert.style.transition = 'opacity 0.5s';
+                alert.style.opacity = '0';
+                setTimeout(function() {
+                    alert.style.display = 'none';
+                }, 500);
+            });
+        }, 5000);
     </script>
 </body>
 </html>
