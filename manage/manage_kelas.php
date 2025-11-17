@@ -2,104 +2,109 @@
 session_start();
 require_once '../config.php';
 
-// Cek apakah user sudah login dan tipe user adalah admin
 checkUserType(['admin']);
 
 $user_name = $_SESSION['user_name'];
-$user_username = $_SESSION['user_username'];
-
-// Koneksi database
+$user_id = $_SESSION['user_id'];
 $pdo = getDBConnection();
 
-// Proses form
 $success_message = '';
 $error_message = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
-    
-    if ($action === 'update') {
-        try {
-            $id_kelas = $_POST['id_kelas'];
-            $nama_kelas = trim($_POST['nama_kelas']);
-            $tahun_ajaran = trim($_POST['tahun_ajaran']);
-            $id_guru_wali = $_POST['id_guru_wali'] ?? null;
-            
-            // Validasi
-            if (empty($nama_kelas) || empty($tahun_ajaran)) {
-                throw new Exception("Nama kelas dan tahun ajaran wajib diisi!");
-            }
-            
-            // Cek apakah nama kelas dan tahun ajaran sudah digunakan kelas lain
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM kelas WHERE nama_kelas = ? AND tahun_ajaran = ? AND id_kelas != ?");
-            $stmt->execute([$nama_kelas, $tahun_ajaran, $id_kelas]);
-            if ($stmt->fetchColumn() > 0) {
-                throw new Exception("Nama kelas dan tahun ajaran sudah digunakan oleh kelas lain!");
-            }
-            
-            // Jika ada guru wali, cek apakah guru sudah menjadi wali kelas lain di tahun ajaran yang sama
-            if ($id_guru_wali) {
-                $stmt = $pdo->prepare("SELECT COUNT(*) FROM kelas WHERE id_guru_wali = ? AND tahun_ajaran = ? AND id_kelas != ?");
-                $stmt->execute([$id_guru_wali, $tahun_ajaran, $id_kelas]);
-                if ($stmt->fetchColumn() > 0) {
-                    throw new Exception("Guru ini sudah menjadi wali kelas lain di tahun ajaran yang sama!");
-                }
-            }
-            
-            // Update data
-            $stmt = $pdo->prepare("
-                UPDATE kelas 
-                SET nama_kelas = ?, tahun_ajaran = ?, id_guru_wali = ?
-                WHERE id_kelas = ?
-            ");
-            
-            $stmt->execute([
-                $nama_kelas,
-                $tahun_ajaran,
-                $id_guru_wali ? $id_guru_wali : null,
-                $id_kelas
-            ]);
-            
-            $success_message = "Data kelas berhasil diupdate!";
-            
-        } catch (Exception $e) {
-            $error_message = $e->getMessage();
+// PROSES TAMBAH KELAS
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create') {
+    try {
+        $nama_kelas = trim($_POST['nama_kelas']);
+        $tahun_ajaran = trim($_POST['tahun_ajaran']);
+        $id_guru_wali = $_POST['id_guru_wali'] ?? null;
+
+        // Validasi
+        if (empty($nama_kelas) || empty($tahun_ajaran)) {
+            throw new Exception("Nama kelas dan tahun ajaran wajib diisi!");
         }
-    }
-    
-    if ($action === 'delete') {
-        try {
-            $id_kelas = $_POST['id_kelas'];
-            
-            // Cek apakah ada siswa di kelas ini
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM user_siswa WHERE id_kelas = ?");
-            $stmt->execute([$id_kelas]);
-            $jumlah_siswa = $stmt->fetchColumn();
-            
-            if ($jumlah_siswa > 0) {
-                throw new Exception("Tidak dapat menghapus kelas! Masih ada $jumlah_siswa siswa di kelas ini. Pindahkan atau hapus siswa terlebih dahulu.");
-            }
-            
-            // Hapus kelas
-            $stmt = $pdo->prepare("DELETE FROM kelas WHERE id_kelas = ?");
-            $stmt->execute([$id_kelas]);
-            
-            $success_message = "Kelas berhasil dihapus!";
-            
-        } catch (Exception $e) {
-            $error_message = $e->getMessage();
+
+        // Cek apakah nama kelas dan tahun ajaran sudah digunakan
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM kelas WHERE nama_kelas = ? AND tahun_ajaran = ?");
+        $stmt->execute([$nama_kelas, $tahun_ajaran]);
+        if ($stmt->fetchColumn() > 0) {
+            throw new Exception("Nama kelas dan tahun ajaran sudah digunakan!");
         }
+
+        // Insert kelas
+        $stmt = $pdo->prepare("INSERT INTO kelas (nama_kelas, tahun_ajaran, id_guru_wali) VALUES (?, ?, ?)");
+        $stmt->execute([$nama_kelas, $tahun_ajaran, $id_guru_wali]);
+
+        $success_message = "Kelas berhasil ditambahkan!";
+
+    } catch (Exception $e) {
+        $error_message = $e->getMessage();
     }
 }
 
-// Ambil semua data kelas dengan join guru wali dan hitung jumlah siswa
+// PROSES UPDATE KELAS
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update') {
+    try {
+        $id_kelas = $_POST['id_kelas'];
+        $nama_kelas = trim($_POST['nama_kelas']);
+        $tahun_ajaran = trim($_POST['tahun_ajaran']);
+        $id_guru_wali = $_POST['id_guru_wali'] ?? null;
+
+        // Validasi
+        if (empty($nama_kelas) || empty($tahun_ajaran)) {
+            throw new Exception("Nama kelas dan tahun ajaran wajib diisi!");
+        }
+
+        // Cek apakah nama kelas dan tahun ajaran sudah digunakan (kecuali milik sendiri)
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM kelas WHERE nama_kelas = ? AND tahun_ajaran = ? AND id_kelas != ?");
+        $stmt->execute([$nama_kelas, $tahun_ajaran, $id_kelas]);
+        if ($stmt->fetchColumn() > 0) {
+            throw new Exception("Nama kelas dan tahun ajaran sudah digunakan oleh kelas lain!");
+        }
+
+        // Update kelas
+        $stmt = $pdo->prepare("UPDATE kelas SET nama_kelas = ?, tahun_ajaran = ?, id_guru_wali = ? WHERE id_kelas = ?");
+        $stmt->execute([$nama_kelas, $tahun_ajaran, $id_guru_wali, $id_kelas]);
+
+        $success_message = "Data kelas berhasil diupdate!";
+
+    } catch (Exception $e) {
+        $error_message = $e->getMessage();
+    }
+}
+
+// PROSES HAPUS KELAS
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete') {
+    try {
+        $id_kelas = $_POST['id_kelas'];
+
+        // Cek apakah ada siswa di kelas ini
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM user_siswa WHERE id_kelas = ?");
+        $stmt->execute([$id_kelas]);
+        $jumlah_siswa = $stmt->fetchColumn();
+
+        if ($jumlah_siswa > 0) {
+            throw new Exception("Tidak dapat menghapus kelas! Masih ada " . $jumlah_siswa . " siswa di kelas ini. Pindahkan atau hapus siswa terlebih dahulu.");
+        }
+
+        // Hapus kelas
+        $stmt = $pdo->prepare("DELETE FROM kelas WHERE id_kelas = ?");
+        $stmt->execute([$id_kelas]);
+
+        $success_message = "Kelas berhasil dihapus!";
+
+    } catch (Exception $e) {
+        $error_message = $e->getMessage();
+    }
+}
+
+// Filter
 $search = $_GET['search'] ?? '';
 $tahun_filter = $_GET['tahun'] ?? '';
 
+// Query kelas
 $query = "
-    SELECT k.*, 
-           g.nama_guru as nama_wali,
-           (SELECT COUNT(*) FROM user_siswa WHERE id_kelas = k.id_kelas) as jumlah_siswa
+    SELECT k.*,
+           g.nama_guru as nama_wali_kelas
     FROM kelas k
     LEFT JOIN user_guru g ON k.id_guru_wali = g.id_guru
     WHERE 1=1
@@ -124,352 +129,476 @@ $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $all_kelas = $stmt->fetchAll();
 
-// Ambil daftar guru aktif untuk dropdown
-$stmt = $pdo->query("SELECT id_guru, nama_guru FROM user_guru WHERE status = 'aktif' ORDER BY nama_guru");
+// Statistik
+$total_kelas = count($all_kelas);
+
+// Hitung kelas dengan wali dan tanpa wali
+$kelas_dengan_wali = 0;
+$kelas_tanpa_wali = 0;
+foreach ($all_kelas as $kelas) {
+    if ($kelas['id_guru_wali']) {
+        $kelas_dengan_wali++;
+    } else {
+        $kelas_tanpa_wali++;
+    }
+}
+
+// Ambil daftar guru aktif
+$stmt = $pdo->prepare("SELECT id_guru, nama_guru FROM user_guru WHERE status = 'aktif' ORDER BY nama_guru ASC");
+$stmt->execute();
 $all_guru = $stmt->fetchAll();
 
-// Ambil daftar tahun ajaran yang unik untuk filter
-$stmt = $pdo->query("SELECT DISTINCT tahun_ajaran FROM kelas ORDER BY tahun_ajaran DESC");
+// Ambil daftar tahun ajaran
+$stmt = $pdo->prepare("SELECT DISTINCT tahun_ajaran FROM kelas ORDER BY tahun_ajaran DESC");
+$stmt->execute();
 $all_tahun_ajaran = $stmt->fetchAll();
-
-// Ambil statistik
-$stmt = $pdo->query("SELECT COUNT(*) as total FROM kelas");
-$total_kelas = $stmt->fetch()['total'];
-
-$stmt = $pdo->query("SELECT COUNT(*) as total FROM kelas WHERE id_guru_wali IS NOT NULL");
-$kelas_dengan_wali = $stmt->fetch()['total'];
-
-$stmt = $pdo->query("SELECT COUNT(*) as total FROM kelas WHERE id_guru_wali IS NULL");
-$kelas_tanpa_wali = $stmt->fetch()['total'];
-
-$stmt = $pdo->query("SELECT COUNT(*) as total FROM user_siswa WHERE id_kelas IS NOT NULL");
-$total_siswa_terdaftar = $stmt->fetch()['total'];
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manajemen Kelas - Admin</title>
-    <link rel="stylesheet" href="../css/tambah_kelas.css">
+    <title>Manajemen Kelas - E-ARSIP</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/manage_kelas.css">
 </head>
-<body>
-    <div class="navbar">
-        <h1>🏫 Manajemen Kelas</h1>
-        <div class="user-info">
-            <span><strong><?php echo htmlspecialchars($user_name); ?></strong></span>
-            <a href="../dashboard/dashboard_admin.php" class="btn btn-back">← Kembali</a>
+<body class="light-theme">
+    
+    <div class="header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-3">
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="logo">MANAJEMEN KELAS</div>
+        </div>
+        
+        <div class="d-flex align-items-center gap-3">
+            <button class="theme-toggle" id="themeToggle">
+                <i class="fas fa-moon"></i>
+            </button>
+            <div class="position-relative">
+                <i class="fas fa-bell" style="font-size: 1.25rem; cursor: pointer;"></i>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem;">3</span>
+            </div>
+            <div class="dropdown">
+                <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
+                    <img src="https://ui-avatars.com/api/?name=<?php echo urlencode($user_name); ?>&background=10b981&color=fff" alt="Profile" class="profile-img">
+                    <span class="ms-2 d-none d-md-block"><?php echo htmlspecialchars($user_name); ?></span>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profile</a></li>
+                    <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Settings</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="../logout.php"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                </ul>
+            </div>
         </div>
     </div>
 
-    <div class="container">
-        <div class="page-header">
-            <div class="page-header-text">
-                <h2>Data Kelas</h2>
-                <p>Kelola dan lihat data kelas</p>
-            </div>
-            <a href="tambah_kelas.php" class="btn btn-success">➕ Tambah Kelas Baru</a>
+    <div class="sidebar" id="sidebar">
+        <div class="menu-section">
+            <div class="menu-section-title">Main Menu</div>
+            <a href="../dashboard/dashboard_admin.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Dashboard">
+                <i class="fas fa-home"></i>
+                <span>DASHBOARD</span>
+            </a>
+        </div>
+
+        <div class="menu-section">
+            <div class="menu-section-title">Manajemen Data</div>
+            <a href="../manage/manage_siswa.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Manajemen Siswa">
+                <i class="fas fa-user-graduate"></i>
+                <span>MANAJEMEN SISWA</span>
+            </a>
+            <a href="../manage/manage_guru.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Manajemen Guru">
+                <i class="fas fa-chalkboard-teacher"></i>
+                <span>MANAJEMEN GURU</span>
+            </a>
+            <a href="../manage/manage_kelas.php" class="menu-item active" data-bs-toggle="tooltip" data-bs-placement="right" title="Manajemen Kelas">
+                <i class="fas fa-school"></i>
+                <span>MANAJEMEN KELAS</span>
+            </a>
+            <a href="../manage/manage_pelajaran.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Manajemen Pelajaran">
+                <i class="fas fa-book"></i>
+                <span>MANAJEMEN PELAJARAN</span>
+            </a>
+            <a href="../manage/manage_admin.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Manajemen Admin">
+                <i class="fas fa-user-shield"></i>
+                <span>MANAJEMEN ADMIN</span>
+            </a>
+            <a href="../manage/manage_arsip.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Manajemen Arsip">
+                <i class="fas fa-archive"></i>
+                <span>MANAJEMEN ARSIP</span>
+            </a>
+        </div>
+
+        <div class="menu-section">
+            <div class="menu-section-title">Tambah Data</div>
+            <a href="../add/tambah_siswa.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Tambah Siswa">
+                <i class="fas fa-user-plus"></i>
+                <span>TAMBAH SISWA</span>
+            </a>
+            <a href="../add/tambah_guru.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Tambah Guru">
+                <i class="fas fa-user-plus"></i>
+                <span>TAMBAH GURU</span>
+            </a>
+            <a href="../add/tambah_kelas.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Tambah Kelas">
+                <i class="fas fa-plus-square"></i>
+                <span>TAMBAH KELAS</span>
+            </a>
+            <a href="../add/tambah_pelajaran.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Tambah Pelajaran">
+                <i class="fas fa-plus-circle"></i>
+                <span>TAMBAH PELAJARAN</span>
+            </a>
+        </div>
+
+        <div class="menu-section">
+            <a href="../logout.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Log Out">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>LOG OUT</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="main-content" id="mainContent">
+        <div class="mb-4">
+            <h2 class="mb-1">🏫 Manajemen Kelas</h2>
+            <p class="text-secondary">Kelola kelas dan wali kelas di sistem</p>
         </div>
 
         <?php if ($success_message): ?>
-        <div class="alert alert-success"><?php echo $success_message; ?></div>
-        <?php endif; ?>
-        
-        <?php if ($error_message): ?>
-        <div class="alert alert-danger"><?php echo $error_message; ?></div>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <?php echo $success_message; ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
         <?php endif; ?>
 
-        <!-- Statistics -->
-        <div class="stats-row">
-            <div class="stat-card">
-                <h3>Total Kelas</h3>
-                <div class="number"><?php echo $total_kelas; ?></div>
+        <?php if ($error_message): ?>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <?php echo $error_message; ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <?php endif; ?>
+
+        <!-- Stats Summary -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="stat-card blue">
+                    <div class="stat-icon blue">
+                        <i class="fas fa-school"></i>
+                    </div>
+                    <div class="stat-value"><?php echo $total_kelas; ?></div>
+                    <div class="stat-label">Total Kelas</div>
+                </div>
             </div>
-            <div class="stat-card" style="border-left-color: #38ef7d;">
-                <h3>Kelas dengan Wali</h3>
-                <div class="number" style="color: #38ef7d;"><?php echo $kelas_dengan_wali; ?></div>
+            <div class="col-md-4">
+                <div class="stat-card green">
+                    <div class="stat-icon green">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                    </div>
+                    <div class="stat-value"><?php echo $kelas_dengan_wali; ?></div>
+                    <div class="stat-label">Kelas dengan Wali</div>
+                </div>
             </div>
-            <div class="stat-card" style="border-left-color: #ffa726;">
-                <h3>Kelas Tanpa Wali</h3>
-                <div class="number" style="color: #ffa726;"><?php echo $kelas_tanpa_wali; ?></div>
-            </div>
-            <div class="stat-card" style="border-left-color: #26c6da;">
-                <h3>Total Siswa Terdaftar</h3>
-                <div class="number" style="color: #26c6da;"><?php echo $total_siswa_terdaftar; ?></div>
+            <div class="col-md-4">
+                <div class="stat-card orange">
+                    <div class="stat-icon orange">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-value"><?php echo $kelas_tanpa_wali; ?></div>
+                    <div class="stat-label">Kelas tanpa Wali</div>
+                </div>
             </div>
         </div>
 
-        <!-- Daftar Kelas -->
-        <div class="card">
-            <div class="card-header">
-                <h3>📋 Daftar Kelas</h3>
+        <!-- Filter -->
+        <div class="dashboard-card mb-4">
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <form method="GET" class="d-flex gap-2">
+                        <input type="text" name="search" class="form-control" placeholder="Cari nama kelas atau wali kelas..." value="<?php echo htmlspecialchars($search); ?>">
+                        <select name="tahun" class="form-select">
+                            <option value="">Semua Tahun Ajaran</option>
+                            <?php foreach ($all_tahun_ajaran as $tahun): ?>
+                            <option value="<?php echo htmlspecialchars($tahun['tahun_ajaran']); ?>" <?php echo $tahun_filter === $tahun['tahun_ajaran'] ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($tahun['tahun_ajaran']); ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search me-2"></i>Cari
+                        </button>
+                        <?php if (!empty($search) || !empty($tahun_filter)): ?>
+                        <a href="manage_kelas.php" class="btn btn-secondary">Reset</a>
+                        <?php endif; ?>
+                    </form>
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#createModal">
+                        <i class="fas fa-plus me-2"></i>Tambah Kelas Baru
+                    </button>
+                </div>
             </div>
-            <div class="card-body">
-                <form method="GET" class="filter-bar">
-                    <input type="text" name="search" placeholder="Cari nama kelas atau wali kelas..." value="<?php echo htmlspecialchars($search); ?>">
-                    <select name="tahun">
-                        <option value="">Semua Tahun Ajaran</option>
-                        <?php foreach ($all_tahun_ajaran as $tahun): ?>
-                        <option value="<?php echo $tahun['tahun_ajaran']; ?>" <?php echo $tahun_filter == $tahun['tahun_ajaran'] ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($tahun['tahun_ajaran']); ?>
-                        </option>
-                        <?php endforeach; ?>
-                    </select>
-                    <button type="submit" class="btn btn-primary">🔍 Cari</button>
-                    <?php if (!empty($search) || !empty($tahun_filter)): ?>
-                    <a href="manage_kelas.php" class="btn btn-secondary">Reset</a>
-                    <?php endif; ?>
-                </form>
+        </div>
 
-                <?php if (count($all_kelas) > 0): ?>
-                <table>
+        <!-- Tabel Kelas -->
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold mb-0">Daftar Kelas (<?php echo $total_kelas; ?>)</h5>
+            </div>
+
+            <?php if (count($all_kelas) > 0): ?>
+            <div class="table-responsive">
+                <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>ID</th>
+                            <th>No</th>
                             <th>Nama Kelas</th>
                             <th>Tahun Ajaran</th>
                             <th>Wali Kelas</th>
-                            <th>Jumlah Siswa</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($all_kelas as $kelas): ?>
+                        <?php foreach ($all_kelas as $idx => $kelas): ?>
                         <tr>
-                            <td><?php echo htmlspecialchars($kelas['id_kelas']); ?></td>
+                            <td><strong><?php echo ($idx + 1); ?></strong></td>
                             <td><strong><?php echo htmlspecialchars($kelas['nama_kelas']); ?></strong></td>
                             <td><?php echo htmlspecialchars($kelas['tahun_ajaran']); ?></td>
                             <td>
-                                <?php if ($kelas['nama_wali']): ?>
-                                    <span class="badge badge-success">
-                                        <?php echo htmlspecialchars($kelas['nama_wali']); ?>
-                                    </span>
+                                <?php if ($kelas['nama_wali_kelas']): ?>
+                                <span class="badge bg-success"><?php echo htmlspecialchars($kelas['nama_wali_kelas']); ?></span>
                                 <?php else: ?>
-                                    <span class="badge badge-warning">Belum Ada Wali</span>
+                                <span class="badge bg-warning text-dark">Belum Ada</span>
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <span class="badge badge-info">
-                                    <?php echo $kelas['jumlah_siswa']; ?> Siswa
-                                </span>
-                            </td>
-                            <td>
-                                <div class="action-buttons">
-                                    <button class="btn btn-info btn-sm" onclick="viewSiswa(<?php echo $kelas['id_kelas']; ?>, '<?php echo htmlspecialchars($kelas['nama_kelas']); ?>')">
-                                        👥 Lihat Siswa
-                                    </button>
-                                    <button class="btn btn-warning btn-sm" onclick="editKelas(<?php echo htmlspecialchars(json_encode($kelas)); ?>)">
-                                        ✏️ Edit
-                                    </button>
-                                    <button class="btn btn-danger btn-sm" onclick="deleteKelas(<?php echo $kelas['id_kelas']; ?>, '<?php echo htmlspecialchars($kelas['nama_kelas']); ?>', <?php echo $kelas['jumlah_siswa']; ?>)">
-                                        🗑️ Hapus
-                                    </button>
-                                </div>
+                                <button class="btn btn-warning btn-sm me-1" onclick='editKelas(<?php echo json_encode($kelas); ?>)'>
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick='deleteKelas(<?php echo $kelas['id_kelas']; ?>, "<?php echo addslashes(htmlspecialchars($kelas['nama_kelas'])); ?>")'>
+                                    <i class="fas fa-trash"></i>
+                                </button>
                             </td>
                         </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
-                <?php else: ?>
-                <div style="text-align: center; padding: 40px; color: #a0aec0;">
-                    <p>Tidak ada data kelas</p>
-                </div>
-                <?php endif; ?>
             </div>
+            <?php else: ?>
+            <div class="text-center py-5">
+                <div class="d-flex align-items-center justify-content-center">
+                    <i class="fas fa-school fa-3x text-muted me-3"></i>
+                    <div>
+                        <h3 class="mb-2">Tidak Ada Kelas</h3>
+                        <p class="text-muted">Belum ada kelas di sistem</p>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
     </div>
 
-    <!-- Modal Edit -->
-    <div class="modal" id="editModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>✏️ Edit Data Kelas</h3>
-                <button class="modal-close" onclick="closeEditModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form method="POST" action="" id="editForm">
-                    <input type="hidden" name="action" value="update">
-                    <input type="hidden" name="id_kelas" id="edit_id_kelas">
-                    
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>Nama Kelas <span style="color: red;">*</span></label>
-                            <input type="text" name="nama_kelas" id="edit_nama_kelas" required>
+    <!-- Modal Tambah Kelas -->
+    <div class="modal fade" id="createModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Tambah Kelas Baru</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" action="">
+                    <input type="hidden" name="action" value="create">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Nama Kelas</label>
+                            <input type="text" name="nama_kelas" class="form-control" required placeholder="Contoh: XII IPA 1">
                         </div>
-                        
-                        <div class="form-group">
-                            <label>Tahun Ajaran <span style="color: red;">*</span></label>
-                            <input type="text" name="tahun_ajaran" id="edit_tahun_ajaran" required>
+                        <div class="mb-3">
+                            <label class="form-label">Tahun Ajaran</label>
+                            <input type="text" name="tahun_ajaran" class="form-control" required placeholder="Contoh: 2024/2025">
                         </div>
-                        
-                        <div class="form-group">
-                            <label>Wali Kelas</label>
-                            <select name="id_guru_wali" id="edit_id_guru_wali">
+                        <div class="mb-3">
+                            <label class="form-label">Wali Kelas (Opsional)</label>
+                            <select name="id_guru_wali" class="form-select">
                                 <option value="">Tidak Ada Wali Kelas</option>
                                 <?php foreach ($all_guru as $guru): ?>
                                 <option value="<?php echo $guru['id_guru']; ?>">
-                                    <?php echo htmlspecialchars($guru['nama_guru']); ?> (ID: <?php echo $guru['id_guru']; ?>)
+                                    <?php echo htmlspecialchars($guru['nama_guru']); ?>
                                 </option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                     </div>
-                    
-                    <div style="display: flex; gap: 10px; margin-top: 20px;">
-                        <button type="submit" class="btn btn-success">✓ Update Data</button>
-                        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Batal</button>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-success">Simpan</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Modal Delete -->
-    <div class="modal" id="deleteModal">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header" style="background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);">
-                <h3>🗑️ Konfirmasi Hapus</h3>
-                <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+    <!-- Modal Edit Kelas -->
+    <div class="modal fade" id="editModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Kelas</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" action="">
+                    <input type="hidden" name="action" value="update">
+                    <input type="hidden" name="id_kelas" id="edit_id_kelas">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Nama Kelas</label>
+                            <input type="text" name="nama_kelas" id="edit_nama_kelas" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tahun Ajaran</label>
+                            <input type="text" name="tahun_ajaran" id="edit_tahun_ajaran" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Wali Kelas</label>
+                            <select name="id_guru_wali" id="edit_id_guru_wali" class="form-select">
+                                <option value="">Tidak Ada Wali Kelas</option>
+                                <?php foreach ($all_guru as $guru): ?>
+                                <option value="<?php echo $guru['id_guru']; ?>">
+                                    <?php echo htmlspecialchars($guru['nama_guru']); ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-success">Update</button>
+                    </div>
+                </form>
             </div>
-            <div class="modal-body">
-                <p style="margin-bottom: 20px; color: #2d3748;">
-                    Apakah Anda yakin ingin menghapus kelas <strong id="delete_nama_kelas"></strong>?
-                </p>
-                <p id="delete_warning" style="color: #e53e3e; font-size: 14px; margin-bottom: 20px;">
-                    ⚠️ Data yang sudah dihapus tidak dapat dikembalikan!
-                </p>
+        </div>
+    </div>
+
+    <!-- Modal Hapus Kelas -->
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Konfirmasi Hapus</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
                 <form method="POST" action="">
                     <input type="hidden" name="action" value="delete">
                     <input type="hidden" name="id_kelas" id="delete_id_kelas">
-                    <div style="display: flex; gap: 10px;">
+                    <div class="modal-body">
+                        <p>Apakah Anda yakin ingin menghapus kelas <strong id="delete_kelas_name"></strong>? Tindakan ini tidak dapat dibatalkan.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
                         <button type="submit" class="btn btn-danger">Hapus</button>
-                        <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Batal</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Modal View Siswa -->
-    <div class="modal" id="viewSiswaModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>👥 Daftar Siswa - <span id="view_nama_kelas"></span></h3>
-                <button class="modal-close" onclick="closeViewSiswaModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div id="siswa_list_content">
-                    <div style="text-align: center; padding: 20px;">
-                        <p>Loading...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        let tooltipList = [];
+
+        function isMobile() {
+            return window.innerWidth <= 768;
+        }
+
+        if (isMobile()) {
+            sidebar.classList.add('collapsed');
+            mainContent.classList.add('expanded');
+        }
+
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('expanded');
+            updateTooltips();
+        });
+
+        function updateTooltips() {
+            tooltipList.forEach(tooltip => tooltip.dispose());
+            tooltipList = [];
+            
+            if (sidebar.classList.contains('collapsed')) {
+                const tooltipElements = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+                tooltipList = [...tooltipElements].map(el => {
+                    return new bootstrap.Tooltip(el, {
+                        trigger: 'hover'
+                    });
+                });
+            }
+        }
+
+        updateTooltips();
+
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+
+        themeToggle.addEventListener('click', () => {
+            body.classList.toggle('dark-theme');
+            body.classList.toggle('light-theme');
+            
+            const icon = themeToggle.querySelector('i');
+            if (body.classList.contains('dark-theme')) {
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+                localStorage.setItem('theme', 'light');
+            }
+        });
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            body.classList.remove('light-theme');
+            body.classList.add('dark-theme');
+            document.querySelector('#themeToggle i').classList.replace('fa-moon', 'fa-sun');
+        }
+
+        window.addEventListener('resize', () => {
+            if (isMobile() && !sidebar.classList.contains('collapsed')) {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('expanded');
+                updateTooltips();
+            }
+        });
+
         function editKelas(kelas) {
             document.getElementById('edit_id_kelas').value = kelas.id_kelas;
             document.getElementById('edit_nama_kelas').value = kelas.nama_kelas;
             document.getElementById('edit_tahun_ajaran').value = kelas.tahun_ajaran;
             document.getElementById('edit_id_guru_wali').value = kelas.id_guru_wali || '';
-            document.getElementById('editModal').classList.add('active');
+            const modal = new bootstrap.Modal(document.getElementById('editModal'));
+            modal.show();
         }
-        
-        function closeEditModal() {
-            document.getElementById('editModal').classList.remove('active');
-        }
-        
-        function deleteKelas(id, nama, jumlahSiswa) {
+
+        function deleteKelas(id, nama) {
             document.getElementById('delete_id_kelas').value = id;
-            document.getElementById('delete_nama_kelas').textContent = nama;
-            
-            const warningEl = document.getElementById('delete_warning');
-            if (jumlahSiswa > 0) {
-                warningEl.innerHTML = `⚠️ <strong>PERINGATAN:</strong> Kelas ini memiliki ${jumlahSiswa} siswa. Anda harus memindahkan atau menghapus siswa terlebih dahulu!`;
-                warningEl.style.fontWeight = 'bold';
-            } else {
-                warningEl.innerHTML = '⚠️ Data yang sudah dihapus tidak dapat dikembalikan!';
-                warningEl.style.fontWeight = 'normal';
-            }
-            
-            document.getElementById('deleteModal').classList.add('active');
+            document.getElementById('delete_kelas_name').textContent = nama;
+            const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            modal.show();
         }
         
-        function closeDeleteModal() {
-            document.getElementById('deleteModal').classList.remove('active');
-        }
-        
-        function viewSiswa(idKelas, namaKelas) {
-            document.getElementById('view_nama_kelas').textContent = namaKelas;
-            document.getElementById('viewSiswaModal').classList.add('active');
-            
-            fetch('get_siswa_kelas.php?id_kelas=' + idKelas)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        let html = '';
-                        if (data.siswa.length > 0) {
-                            html = '<table style="width: 100%; border-collapse: collapse;">';
-                            html += '<thead><tr>';
-                            html += '<th style="background: #f8f9fa; padding: 12px; text-align: left; border-bottom: 2px solid #e2e8f0;">No</th>';
-                            html += '<th style="background: #f8f9fa; padding: 12px; text-align: left; border-bottom: 2px solid #e2e8f0;">NIS</th>';
-                            html += '<th style="background: #f8f9fa; padding: 12px; text-align: left; border-bottom: 2px solid #e2e8f0;">Nama Siswa</th>';
-                            html += '<th style="background: #f8f9fa; padding: 12px; text-align: left; border-bottom: 2px solid #e2e8f0;">JK</th>';
-                            html += '<th style="background: #f8f9fa; padding: 12px; text-align: left; border-bottom: 2px solid #e2e8f0;">Status</th>';
-                            html += '</tr></thead><tbody>';
-                            
-                            data.siswa.forEach((siswa, index) => {
-                                let badgeClass = 'badge-success';
-                                if (siswa.status === 'nonaktif') badgeClass = 'badge-danger';
-                                if (siswa.status === 'lulus') badgeClass = 'badge-warning';
-                                if (siswa.status === 'pindah') badgeClass = 'badge-info';
-                                
-                                html += '<tr style="border-bottom: 1px solid #e2e8f0;">';
-                                html += '<td style="padding: 12px;">' + (index + 1) + '</td>';
-                                html += '<td style="padding: 12px;">' + siswa.nis + '</td>';
-                                html += '<td style="padding: 12px;">' + siswa.nama_siswa + '</td>';
-                                html += '<td style="padding: 12px;">' + (siswa.jenis_kelamin === 'L' ? 'L' : 'P') + '</td>';
-                                html += '<td style="padding: 12px;"><span class="badge ' + badgeClass + '">' + siswa.status.charAt(0).toUpperCase() + siswa.status.slice(1) + '</span></td>';
-                                html += '</tr>';
-                            });
-                            
-                            html += '</tbody></table>';
-                        } else {
-                            html = '<div style="text-align: center; padding: 40px; color: #a0aec0;"><p>Belum ada siswa di kelas ini</p></div>';
-                        }
-                        document.getElementById('siswa_list_content').innerHTML = html;
-                    } else {
-                        document.getElementById('siswa_list_content').innerHTML = '<div style="text-align: center; padding: 20px; color: #e53e3e;"><p>Error: ' + data.message + '</p></div>';
-                    }
-                })
-                .catch(error => {
-                    document.getElementById('siswa_list_content').innerHTML = '<div style="text-align: center; padding: 20px; color: #e53e3e;"><p>Terjadi kesalahan saat memuat data</p></div>';
-                });
-        }
-        
-        function closeViewSiswaModal() {
-            document.getElementById('viewSiswaModal').classList.remove('active');
-        }
-        
-        window.onclick = function(event) {
-            const editModal = document.getElementById('editModal');
-            const deleteModal = document.getElementById('deleteModal');
-            const viewSiswaModal = document.getElementById('viewSiswaModal');
-            
-            if (event.target === editModal) closeEditModal();
-            if (event.target === deleteModal) closeDeleteModal();
-            if (event.target === viewSiswaModal) closeViewSiswaModal();
-        }
-        
-        setTimeout(function() {
+        // Auto close alerts
+        setTimeout(() => {
             const alerts = document.querySelectorAll('.alert');
-            alerts.forEach(function(alert) {
-                alert.style.transition = 'opacity 0.5s';
-                alert.style.opacity = '0';
-                setTimeout(function() {
-                    alert.style.display = 'none';
-                }, 500);
+            alerts.forEach(alert => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
             });
         }, 5000);
     </script>

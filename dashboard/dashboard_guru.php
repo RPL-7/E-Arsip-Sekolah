@@ -8,6 +8,8 @@ checkUserType(['guru']);
 $user_name = $_SESSION['user_name'];
 $user_id = $_SESSION['user_id'];
 
+$pdo = getDBConnection();
+
 // Ambil parameter page dari URL, default ke 'dashboard'
 $page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
 
@@ -45,6 +47,98 @@ $page_titles = [
 ];
 
 $current_title = $page_titles[$page] ?? 'Dashboard Guru';
+
+// Hitung statistik
+$stmt = $pdo->prepare("
+    SELECT COUNT(*) as total_siswa
+    FROM user_siswa s
+    JOIN kelas_pelajaran kp ON s.id_kelas = kp.id_kelas
+    WHERE kp.id_guru = ?
+");
+$stmt->execute([$user_id]);
+$total_siswa = $stmt->fetch()['total_siswa'];
+
+$stmt = $pdo->prepare("
+    SELECT COUNT(DISTINCT k.id_kelas) as total_kelas
+    FROM kelas k
+    JOIN kelas_pelajaran kp ON k.id_kelas = kp.id_kelas
+    WHERE kp.id_guru = ?
+");
+$stmt->execute([$user_id]);
+$total_kelas = $stmt->fetch()['total_kelas'];
+
+$stmt = $pdo->prepare("
+    SELECT COUNT(*) as total_tugas
+    FROM tugas
+    WHERE id_guru = ? AND status = 'aktif'
+");
+$stmt->execute([$user_id]);
+$total_tugas = $stmt->fetch()['total_tugas'];
+
+// Karena tabel nilai tampaknya tidak ada, kita ganti dengan jumlah yang telah dinilai dari kolom nilai_siswa di tabel tugas
+$stmt = $pdo->prepare("
+    SELECT COUNT(*) as total_nilai
+    FROM tugas
+    WHERE id_guru = ? AND JSON_LENGTH(nilai_siswa) > 0
+");
+$stmt->execute([$user_id]);
+$total_nilai = $stmt->fetch()['total_nilai'];
+
+// Ambil kelas dan pelajaran yang diajar oleh guru ini
+$stmt = $pdo->prepare("
+    SELECT k.nama_kelas, p.nama_pelajaran, k.id_kelas
+    FROM kelas_pelajaran kp
+    JOIN kelas k ON kp.id_kelas = k.id_kelas
+    JOIN pelajaran p ON kp.id_pelajaran = p.id_pelajaran
+    WHERE kp.id_guru = ?
+    ORDER BY k.nama_kelas
+");
+$stmt->execute([$user_id]);
+$kelas_pelajaran = $stmt->fetchAll();
+
+// Ambil tugas terbaru
+$stmt = $pdo->prepare("
+    SELECT t.judul_tugas, t.tanggal_dibuat, t.deadline, k.nama_kelas, p.nama_pelajaran,
+           JSON_LENGTH(t.nilai_siswa) as jumlah_dinilai
+    FROM tugas t
+    JOIN kelas k ON t.id_kelas = k.id_kelas
+    JOIN pelajaran p ON t.id_pelajaran = p.id_pelajaran
+    WHERE t.id_guru = ?
+    ORDER BY t.tanggal_dibuat DESC
+    LIMIT 3
+");
+$stmt->execute([$user_id]);
+$tugas_terbaru = $stmt->fetchAll();
+
+// Ambil arsip terbaru milik guru ini
+$stmt = $pdo->prepare("
+    SELECT judul_arsip, tanggal_upload, file_type, file_name
+    FROM arsip
+    WHERE id_uploader = ? AND tipe_uploader = 'guru'
+    ORDER BY tanggal_upload DESC
+    LIMIT 3
+");
+$stmt->execute([$user_id]);
+$arsip_terbaru = $stmt->fetchAll();
+
+// Hitung jumlah siswa per kelas yang diajar
+$kelas_data = [];
+foreach ($kelas_pelajaran as $kp) {
+    $stmt = $pdo->prepare("SELECT COUNT(*) as jumlah_siswa FROM user_siswa WHERE id_kelas = ? AND status = 'aktif'");
+    $stmt->execute([$kp['id_kelas']]);
+    $jumlah_siswa = $stmt->fetch()['jumlah_siswa'];
+
+    $stmt = $pdo->prepare("SELECT COUNT(*) as jumlah_tugas FROM tugas WHERE id_kelas = ? AND id_guru = ?");
+    $stmt->execute([$kp['id_kelas'], $user_id]);
+    $jumlah_tugas = $stmt->fetch()['jumlah_tugas'];
+
+    $kelas_data[] = [
+        'nama_kelas' => $kp['nama_kelas'],
+        'nama_pelajaran' => $kp['nama_pelajaran'],
+        'jumlah_siswa' => $jumlah_siswa,
+        'jumlah_tugas' => $jumlah_tugas
+    ];
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -57,7 +151,7 @@ $current_title = $page_titles[$page] ?? 'Dashboard Guru';
     <link rel="stylesheet" href="../css/dashboard_guru.css">
 </head>
 <body class="light-theme">
-    
+
     <div class="header d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center gap-3">
             <button class="sidebar-toggle" id="sidebarToggle">
@@ -65,14 +159,14 @@ $current_title = $page_titles[$page] ?? 'Dashboard Guru';
             </button>
             <div class="logo">DASHBOARD GURU</div>
         </div>
-        
+
         <div class="d-flex align-items-center gap-3">
             <button class="theme-toggle" id="themeToggle">
                 <i class="fas fa-moon"></i>
             </button>
             <div class="position-relative">
                 <i class="fas fa-bell" style="font-size: 1.25rem; cursor: pointer;"></i>
-                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem;">5</span>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem;">3</span>
             </div>
             <div class="dropdown">
                 <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
@@ -139,104 +233,58 @@ $current_title = $page_titles[$page] ?? 'Dashboard Guru';
                 <div class="stat-icon blue">
                     <i class="fas fa-users"></i>
                 </div>
-                <div class="stat-value">128</div>
+                <div class="stat-value"><?php echo $total_siswa; ?></div>
                 <div class="stat-label">Jumlah Siswa</div>
             </div>
             <div class="stat-card green">
                 <div class="stat-icon green">
                     <i class="fas fa-book"></i>
                 </div>
-                <div class="stat-value">12</div>
+                <div class="stat-value"><?php echo $total_kelas; ?></div>
                 <div class="stat-label">Jumlah Kelas</div>
             </div>
             <div class="stat-card purple">
                 <div class="stat-icon purple">
                     <i class="fas fa-tasks"></i>
                 </div>
-                <div class="stat-value">15</div>
+                <div class="stat-value"><?php echo $total_tugas; ?></div>
                 <div class="stat-label">Tugas Aktif</div>
             </div>
             <div class="stat-card orange">
                 <div class="stat-icon orange">
                     <i class="fas fa-file-alt"></i>
                 </div>
-                <div class="stat-value">42</div>
+                <div class="stat-value"><?php echo $total_nilai; ?></div>
                 <div class="stat-label">Nilai Tugas</div>
             </div>
         </div>
 
         <div class="class-grid">
+            <?php foreach ($kelas_data as $kelas): ?>
             <div class="class-card">
                 <div class="class-header">
                     <div>
-                        <div class="class-name">Matematika</div>
-                        <div class="class-subject">Kelas 7A</div>
+                        <div class="class-name"><?php echo htmlspecialchars($kelas['nama_pelajaran']); ?></div>
+                        <div class="class-subject"><?php echo htmlspecialchars($kelas['nama_kelas']); ?></div>
                     </div>
                     <div class="class-badge">Aktif</div>
                 </div>
                 <div class="class-stats">
                     <div class="class-stat-item">
                         <i class="fas fa-users"></i>
-                        <span>32 Siswa</span>
+                        <span><?php echo $kelas['jumlah_siswa']; ?> Siswa</span>
                     </div>
                     <div class="class-stat-item">
                         <i class="fas fa-tasks"></i>
-                        <span>5 Tugas</span>
+                        <span><?php echo $kelas['jumlah_tugas']; ?> Tugas</span>
                     </div>
                 </div>
                 <div class="class-actions">
-                    <button class="btn-class-action">Lihat</button>
-                    <button class="btn-class-action">Nilai</button>
+                    <a href="../tugas/tugas_guru.php" class="btn-class-action">Lihat</a>
+                    <a href="../nilai/penilaian.php" class="btn-class-action">Nilai</a>
                 </div>
             </div>
-
-            <div class="class-card">
-                <div class="class-header">
-                    <div>
-                        <div class="class-name">Fisika</div>
-                        <div class="class-subject">Kelas 10B</div>
-                    </div>
-                    <div class="class-badge">Aktif</div>
-                </div>
-                <div class="class-stats">
-                    <div class="class-stat-item">
-                        <i class="fas fa-users"></i>
-                        <span>28 Siswa</span>
-                    </div>
-                    <div class="class-stat-item">
-                        <i class="fas fa-tasks"></i>
-                        <span>3 Tugas</span>
-                    </div>
-                </div>
-                <div class="class-actions">
-                    <button class="btn-class-action">Lihat</button>
-                    <button class="btn-class-action">Nilai</button>
-                </div>
-            </div>
-
-            <div class="class-card">
-                <div class="class-header">
-                    <div>
-                        <div class="class-name">Kimia</div>
-                        <div class="class-subject">Kelas 11A</div>
-                    </div>
-                    <div class="class-badge">Aktif</div>
-                </div>
-                <div class="class-stats">
-                    <div class="class-stat-item">
-                        <i class="fas fa-users"></i>
-                        <span>26 Siswa</span>
-                    </div>
-                    <div class="class-stat-item">
-                        <i class="fas fa-tasks"></i>
-                        <span>4 Tugas</span>
-                    </div>
-                </div>
-                <div class="class-actions">
-                    <button class="btn-class-action">Lihat</button>
-                    <button class="btn-class-action">Nilai</button>
-                </div>
-            </div>
+            <?php endforeach; ?>
         </div>
 
         <div class="row">
@@ -246,36 +294,28 @@ $current_title = $page_titles[$page] ?? 'Dashboard Guru';
                 </div>
                 <div class="dashboard-card">
                     <div class="activity-list">
+                        <?php if (count($tugas_terbaru) > 0): ?>
+                        <?php foreach ($tugas_terbaru as $tugas): ?>
                         <div class="activity-card">
                             <div class="activity-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
                                 <i class="fas fa-book"></i>
                             </div>
                             <div class="activity-content">
-                                <div class="activity-title">Tugas Matematika - Aljabar</div>
-                                <div class="activity-desc">Kelas 7A - Deadline: 15 Nov 2025</div>
+                                <div class="activity-title"><?php echo htmlspecialchars($tugas['judul_tugas']); ?></div>
+                                <div class="activity-desc"><?php echo htmlspecialchars($tugas['nama_kelas']); ?> - <?php echo htmlspecialchars($tugas['nama_pelajaran']); ?></div>
+                                <?php if ($tugas['deadline']): ?>
+                                <div class="activity-desc">Deadline: <?php echo date('d M Y', strtotime($tugas['deadline'])); ?></div>
+                                <?php endif; ?>
                             </div>
-                            <div class="activity-time">2 jam lalu</div>
+                            <div class="activity-time"><?php echo time_elapsed_string($tugas['tanggal_dibuat']); ?></div>
                         </div>
-                        <div class="activity-card">
-                            <div class="activity-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
-                                <i class="fas fa-file-alt"></i>
-                            </div>
-                            <div class="activity-content">
-                                <div class="activity-title">Penilaian Fisika</div>
-                                <div class="activity-desc">Kelas 10B - 24 siswa dinilai</div>
-                            </div>
-                            <div class="activity-time">1 hari lalu</div>
+                        <?php endforeach; ?>
+                        <?php else: ?>
+                        <div class="text-center py-3 text-muted">
+                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                            <p>Belum ada tugas</p>
                         </div>
-                        <div class="activity-card">
-                            <div class="activity-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
-                                <i class="fas fa-users"></i>
-                            </div>
-                            <div class="activity-content">
-                                <div class="activity-title">Pertemuan Wali Kelas</div>
-                                <div class="activity-desc">Kelas 7A - 12 Nov 2025</div>
-                            </div>
-                            <div class="activity-time">3 hari lalu</div>
-                        </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -285,36 +325,36 @@ $current_title = $page_titles[$page] ?? 'Dashboard Guru';
                 </div>
                 <div class="dashboard-card">
                     <div class="activity-list">
+                        <?php if (count($arsip_terbaru) > 0): ?>
+                        <?php foreach ($arsip_terbaru as $arsip): ?>
                         <div class="activity-card">
                             <div class="activity-icon" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">
-                                <i class="fas fa-file-pdf"></i>
+                                <?php
+                                $icon_map = [
+                                    'pdf' => 'fa-file-pdf',
+                                    'doc' => 'fa-file-word', 'docx' => 'fa-file-word',
+                                    'xls' => 'fa-file-excel', 'xlsx' => 'fa-file-excel',
+                                    'ppt' => 'fa-file-powerpoint', 'pptx' => 'fa-file-powerpoint',
+                                    'jpg' => 'fa-file-image', 'jpeg' => 'fa-file-image', 'png' => 'fa-file-image',
+                                    'zip' => 'fa-file-archive', 'rar' => 'fa-file-archive'
+                                ];
+                                $icon = $icon_map[$arsip['file_type']] ?? 'fa-file';
+                                ?>
+                                <i class="fas <?php echo $icon; ?>"></i>
                             </div>
                             <div class="activity-content">
-                                <div class="activity-title">Materi Aljabar.pdf</div>
-                                <div class="activity-desc">Matematika - 7A</div>
+                                <div class="activity-title"><?php echo htmlspecialchars($arsip['judul_arsip']); ?></div>
+                                <div class="activity-desc"><?php echo htmlspecialchars($arsip['file_name']); ?></div>
                             </div>
-                            <div class="activity-time">5 jam lalu</div>
+                            <div class="activity-time"><?php echo time_elapsed_string($arsip['tanggal_upload']); ?></div>
                         </div>
-                        <div class="activity-card">
-                            <div class="activity-icon" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">
-                                <i class="fas fa-file-powerpoint"></i>
-                            </div>
-                            <div class="activity-content">
-                                <div class="activity-title">Presentasi Fisika.pptx</div>
-                                <div class="activity-desc">Fisika - 10B</div>
-                            </div>
-                            <div class="activity-time">2 hari lalu</div>
+                        <?php endforeach; ?>
+                        <?php else: ?>
+                        <div class="text-center py-3 text-muted">
+                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                            <p>Belum ada arsip</p>
                         </div>
-                        <div class="activity-card">
-                            <div class="activity-icon" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">
-                                <i class="fas fa-file-word"></i>
-                            </div>
-                            <div class="activity-content">
-                                <div class="activity-title">Laporan Praktikum.docx</div>
-                                <div class="activity-desc">Kimia - 11A</div>
-                            </div>
-                            <div class="activity-time">4 hari lalu</div>
-                        </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -346,7 +386,7 @@ $current_title = $page_titles[$page] ?? 'Dashboard Guru';
         function updateTooltips() {
             tooltipList.forEach(tooltip => tooltip.dispose());
             tooltipList = [];
-            
+
             if (sidebar.classList.contains('collapsed')) {
                 const tooltipElements = document.querySelectorAll('[data-bs-toggle="tooltip"]');
                 tooltipList = [...tooltipElements].map(el => {
@@ -365,7 +405,7 @@ $current_title = $page_titles[$page] ?? 'Dashboard Guru';
         themeToggle.addEventListener('click', () => {
             body.classList.toggle('dark-theme');
             body.classList.toggle('light-theme');
-            
+
             const icon = themeToggle.querySelector('i');
             if (body.classList.contains('dark-theme')) {
                 icon.classList.remove('fa-moon');
@@ -396,3 +436,35 @@ $current_title = $page_titles[$page] ?? 'Dashboard Guru';
     </script>
 </body>
 </html>
+
+<?php
+// Fungsi untuk menghitung waktu yang telah berlalu
+function time_elapsed_string($datetime, $full = false) {
+    $now = new DateTime;
+    $ago = new DateTime($datetime);
+    $diff = $now->diff($ago);
+
+    $diff->w = floor($diff->d / 7);
+    $diff->d -= $diff->w * 7;
+
+    $string = array(
+        'y' => 'tahun',
+        'm' => 'bulan',
+        'w' => 'minggu',
+        'd' => 'hari',
+        'h' => 'jam',
+        'i' => 'menit',
+        's' => 'detik',
+    );
+    foreach ($string as $k => &$v) {
+        if ($diff->$k) {
+            $v = $diff->$k . ' ' . $v . ($diff->$k > 1 ? '' : '');
+        } else {
+            unset($string[$k]);
+        }
+    }
+
+    if (!$full) $string = array_slice($string, 0, 1);
+    return $string ? implode(', ', $string) . ' lalu' : 'baru saja';
+}
+?>

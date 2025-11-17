@@ -369,700 +369,532 @@ function formatSize($bytes) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tugas & Materi - Guru</title>
+    <title>Tugas & Materi - E-ARSIP</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/tugas_guru.css">
 </head>
-<body>
-    <div class="navbar">
-        <h1>📚 Tugas & Materi</h1>
-        <div class="user-info">
-            <span><strong><?php echo htmlspecialchars($user_name); ?></strong></span>
-            <a href="../dashboard/dashboard_guru.php" class="btn btn-back">← Kembali</a>
+<body class="light-theme">
+
+    <div class="header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-3">
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="logo">TUGAS & MATERI</div>
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+            <button class="theme-toggle" id="themeToggle">
+                <i class="fas fa-moon"></i>
+            </button>
+            <div class="position-relative">
+                <i class="fas fa-bell" style="font-size: 1.25rem; cursor: pointer;"></i>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem;">3</span>
+            </div>
+            <div class="dropdown">
+                <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
+                    <img src="https://ui-avatars.com/api/?name=<?php echo urlencode($user_name); ?>&background=10b981&color=fff" alt="Profile" class="profile-img">
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profile</a></li>
+                    <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Settings</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="../login.php"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                </ul>
+            </div>
         </div>
     </div>
 
-    <div class="container">
-        <div class="page-header">
-            <div class="page-header-text">
-                <h2>Manajemen Tugas & Materi</h2>
-                <p>Buat tugas atau upload materi untuk siswa</p>
+    <div class="sidebar" id="sidebar">
+        <div class="menu-section">
+            <div class="menu-section-title">Main Menu</div>
+            <a href="../dashboard/dashboard_guru.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Dashboard">
+                <i class="fas fa-home"></i>
+                <span>DASHBOARD</span>
+            </a>
+            <a href="#" class="menu-item active" data-bs-toggle="tooltip" data-bs-placement="right" title="Tugas & Materi">
+                <i class="fas fa-book-open"></i>
+                <span>TUGAS & MATERI</span>
+            </a>
+            <a href="../nilai/penilaian.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Penilaian">
+                <i class="fas fa-clipboard-check"></i>
+                <span>PENILAIAN</span>
+            </a>
+            <a href="../arsip/arsip_guru.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Arsip">
+                <i class="fas fa-archive"></i>
+                <span>ARSIP</span>
+            </a>
+        </div>
+
+        <div class="menu-section">
+            <a href="../login.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Log Out">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>LOG OUT</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="main-content" id="mainContent">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="mb-1">📚 Tugas & Materi</h2>
+                <p class="text-secondary">Kelola tugas dan materi pembelajaran</p>
             </div>
-            <div style="display: flex; gap: 10px;">
-                <button class="btn btn-success" onclick="openMateriModal()">📖 Upload Materi</button>
-                <button class="btn btn-primary" onclick="openCreateModal()">➕ Buat Tugas</button>
+            <div class="d-flex gap-2">
+                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalTambahMateri">
+                    <i class="fas fa-file-upload me-2"></i>Upload Materi
+                </button>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalTambahTugas">
+                    <i class="fas fa-plus me-2"></i>Buat Tugas Baru
+                </button>
             </div>
         </div>
 
         <?php if ($success_message): ?>
-        <div class="alert alert-success"><?php echo $success_message; ?></div>
-        <?php endif; ?>
-        
-        <?php if ($error_message): ?>
-        <div class="alert alert-danger"><?php echo $error_message; ?></div>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <?php echo $success_message; ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
         <?php endif; ?>
 
-        <!-- Statistics -->
-        <div class="stats-row">
-            <div class="stat-card">
-                <h3>Total Tugas</h3>
-                <div class="number"><?php echo $total_tugas; ?></div>
+        <?php if ($error_message): ?>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <?php echo $error_message; ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <?php endif; ?>
+
+        <!-- Stats Summary -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="stat-card blue">
+                    <div class="stat-icon blue">
+                        <i class="fas fa-tasks"></i>
+                    </div>
+                    <div class="stat-value"><?php echo $total_tugas; ?></div>
+                    <div class="stat-label">Total Tugas</div>
+                </div>
             </div>
-            <div class="stat-card" style="border-left-color: #38ef7d;">
-                <h3>Total Materi</h3>
-                <div class="number" style="color: #38ef7d;"><?php echo $total_materi; ?></div>
+            <div class="col-md-4">
+                <div class="stat-card green">
+                    <div class="stat-icon green">
+                        <i class="fas fa-folder"></i>
+                    </div>
+                    <div class="stat-value"><?php echo $total_materi; ?></div>
+                    <div class="stat-label">Total Materi</div>
+                </div>
             </div>
-            <div class="stat-card" style="border-left-color: #ffa726;">
-                <h3>Tugas Aktif</h3>
-                <div class="number" style="color: #ffa726;"><?php echo $tugas_aktif; ?></div>
+            <div class="col-md-4">
+                <div class="stat-card orange">
+                    <div class="stat-icon orange">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-value"><?php echo $tugas_aktif; ?></div>
+                    <div class="stat-label">Tugas Aktif</div>
+                </div>
             </div>
         </div>
 
         <!-- Filter -->
-        <div class="card">
-            <div class="card-body" style="padding: 20px;">
+        <div class="card dashboard-card mb-4">
+            <div class="card-body">
                 <form method="GET" class="filter-bar">
-                    <input type="text" name="search" placeholder="Cari judul..." value="<?php echo htmlspecialchars($search); ?>">
-                    <select name="kelas">
-                        <option value="">Semua Kelas</option>
-                        <?php foreach ($kelas_list as $id_kelas => $kelas_data): ?>
-                        <option value="<?php echo $id_kelas; ?>" <?php echo $kelas_filter == $id_kelas ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($kelas_data['nama_kelas']); ?>
-                        </option>
-                        <?php endforeach; ?>
-                    </select>
-                    <select name="tipe">
-                        <option value="">Semua Tipe</option>
-                        <option value="tugas" <?php echo $tipe_filter === 'tugas' ? 'selected' : ''; ?>>Tugas</option>
-                        <option value="materi" <?php echo $tipe_filter === 'materi' ? 'selected' : ''; ?>>Materi</option>
-                    </select>
-                    <button type="submit" class="btn btn-primary">🔍 Cari</button>
-                    <?php if (!empty($search) || !empty($kelas_filter) || !empty($tipe_filter)): ?>
-                    <a href="tugas_guru.php" class="btn btn-secondary">Reset</a>
-                    <?php endif; ?>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <input type="text" name="search" class="form-control" placeholder="Cari judul..." value="<?php echo htmlspecialchars($search); ?>">
+                        </div>
+                        <div class="col-md-3">
+                            <select name="kelas" class="form-select">
+                                <option value="">Semua Kelas</option>
+                                <?php foreach ($kelas_list as $id_kelas => $kelas_data): ?>
+                                <option value="<?php echo $id_kelas; ?>" <?php echo $kelas_filter == $id_kelas ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($kelas_data['nama_kelas']); ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select name="tipe" class="form-select">
+                                <option value="">Semua Tipe</option>
+                                <option value="tugas" <?php echo $tipe_filter === 'tugas' ? 'selected' : ''; ?>>Tugas</option>
+                                <option value="materi" <?php echo $tipe_filter === 'materi' ? 'selected' : ''; ?>>Materi</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100">🔍 Cari</button>
+                        </div>
+                    </div>
                 </form>
             </div>
         </div>
 
-        <!-- Daftar -->
-        <?php if (count($all_items) > 0): ?>
-        <div class="tugas-grid">
-            <?php foreach ($all_items as $item): ?>
-            <?php
-            $is_tugas = $item['tipe'] === 'tugas';
-            $is_expired = $is_tugas && $item['deadline'] && strtotime($item['deadline']) < time() && $item['status'] == 'aktif';
-            $status_badge_class = 'badge-success';
-            $status_text = $is_tugas ? 'Aktif' : 'Tersedia';
-            
-            if ($is_tugas) {
+        <!-- Tabs -->
+        <ul class="nav nav-pills mb-4">
+            <li class="nav-item">
+                <a class="nav-link <?php echo ($tipe_filter === '' || $tipe_filter === 'tugas') ? 'active' : ''; ?>" data-bs-toggle="tab" href="#tugasTab">Tugas (<?php echo count(array_filter($all_items, function($item) { return $item['tipe'] === 'tugas'; })); ?>)</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo ($tipe_filter === 'materi') ? 'active' : ''; ?>" data-bs-toggle="tab" href="#materiTab">Materi (<?php echo count(array_filter($all_items, function($item) { return $item['tipe'] === 'materi'; })); ?>)</a>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+            <!-- Tab Tugas -->
+            <div class="tab-pane fade <?php echo ($tipe_filter === '' || $tipe_filter === 'tugas') ? 'show active' : ''; ?>" id="tugasTab">
+                <?php
+                $tugas_items = array_filter($all_items, function($item) {
+                    return $item['tipe'] === 'tugas';
+                });
+                ?>
+                <?php if (count($tugas_items) > 0): ?>
+                <?php foreach ($tugas_items as $item): ?>
+                <?php
+                $is_expired = $item['deadline'] && strtotime($item['deadline']) < time() && $item['status'] == 'aktif';
+                $status_badge_class = 'bg-success';
+                $status_text = 'Aktif';
+
                 if ($item['status'] == 'selesai') {
-                    $status_badge_class = 'badge-warning';
+                    $status_badge_class = 'bg-warning text-dark';
                     $status_text = 'Selesai';
                 } elseif ($item['status'] == 'tertutup') {
-                    $status_badge_class = 'badge-secondary';
+                    $status_badge_class = 'bg-secondary';
                     $status_text = 'Tertutup';
                 } elseif ($is_expired) {
-                    $status_badge_class = 'badge-danger';
+                    $status_badge_class = 'bg-danger';
                     $status_text = 'Lewat Deadline';
                 }
-            }
-            ?>
-            <div class="tugas-card">
-                <div class="tugas-header">
-                    <div class="tugas-title">
-                        <h4>
-                            <?php echo $is_tugas ? '📝' : '📖'; ?> 
-                            <?php echo htmlspecialchars($item['judul']); ?>
-                        </h4>
+
+                $jumlah_mengumpulkan = $item['jumlah_siswa']; // Asumsi semua siswa mengumpulkan sebagai contoh
+                $progress = 100; // Perlu dihitung dari database sebenarnya
+                ?>
+                <div class="dashboard-card mb-3">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center gap-3 mb-2">
+                                <h5 class="fw-bold mb-0"><?php echo htmlspecialchars($item['judul']); ?></h5>
+                                <span class="badge <?php echo $status_badge_class; ?>"><?php echo $status_text; ?></span>
+                            </div>
+                            <p class="text-muted mb-2">
+                                <i class="fas fa-chalkboard me-2"></i><?php echo htmlspecialchars($item['nama_kelas']); ?>
+                                <i class="fas fa-calendar ms-3 me-2"></i>Deadline: <?php echo $item['deadline'] ? date('d M Y', strtotime($item['deadline'])) : 'Tidak ada'; ?>
+                                <i class="fas fa-users ms-3 me-2"></i><?php echo $jumlah_mengumpulkan; ?>/<?php echo $jumlah_mengumpulkan; ?> Siswa Mengumpulkan
+                            </p>
+                            <?php if ($item['deskripsi']): ?>
+                            <p class="mb-0"><?php echo nl2br(htmlspecialchars($item['deskripsi'])); ?></p>
+                            <?php endif; ?>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-primary" onclick="openTugasModal(<?php echo $item['id']; ?>)">
+                                <i class="fas fa-eye me-1"></i>Lihat
+                            </button>
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-cog"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="?edit=<?php echo $item['id']; ?>"><i class="fas fa-edit me-2"></i>Edit</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="confirmDeleteTugas(<?php echo $item['id']; ?>)"><i class="fas fa-trash me-2"></i>Hapus</a></li>
+                                    <li><a class="dropdown-item" href="?download=<?php echo $item['id']; ?>"><i class="fas fa-download me-2"></i>Download</a></li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
-                    <span class="badge <?php echo $status_badge_class; ?>"><?php echo $status_text; ?></span>
-                </div>
-                
-                <div class="tugas-meta">
-                    <div>📚 <?php echo htmlspecialchars($item['nama_pelajaran']); ?></div>
-                    <div>🏫 <?php echo htmlspecialchars($item['nama_kelas']); ?> (<?php echo $item['jumlah_siswa']; ?> siswa)</div>
-                    <div>📅 Dibuat: <?php echo date('d/m/Y H:i', strtotime($item['tanggal_dibuat'])); ?></div>
-                    <?php if ($is_tugas && $item['deadline']): ?>
-                    <div style="color: <?php echo $is_expired ? '#f5576c' : '#2d3748'; ?>">
-                        ⏰ Deadline: <?php echo date('d/m/Y H:i', strtotime($item['deadline'])); ?>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-success" style="width: <?php echo $progress; ?>%"></div>
                     </div>
-                    <?php endif; ?>
-                    <?php if ($item['file_name']): ?>
-                    <div>📎 File: <?php echo htmlspecialchars($item['file_name']); ?></div>
-                    <?php endif; ?>
+                    <small class="text-muted">Progress pengumpulan: <?php echo $progress; ?>%</small>
                 </div>
-                
-                <?php if ($item['deskripsi']): ?>
-                <div class="tugas-desc">
-                    <?php echo nl2br(htmlspecialchars($item['deskripsi'])); ?>
+                <?php endforeach; ?>
+                <?php else: ?>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>Belum ada tugas tersedia.
                 </div>
                 <?php endif; ?>
-                
-                <div class="tugas-actions">
-                    <?php if ($item['file_path']): ?>
-                    <a href="<?php echo htmlspecialchars($item['file_path']); ?>" target="_blank" class="btn btn-success btn-sm">
-                        📥 Download
-                    </a>
-                    <?php endif; ?>
-                    <?php if ($is_tugas): ?>
-                    <button class="btn btn-warning btn-sm" onclick="changeStatus(<?php echo $item['id']; ?>, '<?php echo $item['status']; ?>')">
-                        🔄 Status
-                    </button>
-                    <a href="nilai_tugas.php?id=<?php echo $item['id']; ?>" class="btn btn-info btn-sm">
-                        📊 Nilai
-                    </a>
-                    <?php endif; ?>
-                    <button class="btn btn-danger btn-sm" onclick="deleteItem('<?php echo $item['tipe']; ?>', <?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['judul']); ?>')">
-                        🗑️ Hapus
-                    </button>
-                </div>
             </div>
-            <?php endforeach; ?>
-        </div>
-        <?php else: ?>
-        <div class="card">
-            <div class="card-body" style="text-align: center; padding: 60px 20px; color: #a0aec0;">
-                <div style="font-size: 64px; margin-bottom: 20px;">📚</div>
-                <h3 style="margin-bottom: 10px; color: #718096;">Belum Ada Data</h3>
-                <p>Buat tugas atau upload materi untuk siswa</p>
-            </div>
-        </div>
-        <?php endif; ?>
-    </div>
 
-    <!-- Modal Upload Materi -->
-    <div class="modal" id="materiModal">
-        <div class="modal-content" style="max-width: 700px;">
-            <div class="modal-header">
-                <h3>📖 Upload Materi Pembelajaran</h3>
-                <button class="modal-close" onclick="closeMateriModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <?php if (empty($kelas_list)): ?>
-                <div class="info-box" style="background: #fff3cd; border-left-color: #ffa726;">
-                    <h4>⚠️ Perhatian</h4>
-                    <p>Anda belum mengajar di kelas manapun.</p>
+            <!-- Tab Materi -->
+            <div class="tab-pane fade <?php echo ($tipe_filter === 'materi') ? 'show active' : ''; ?>" id="materiTab">
+                <?php
+                $materi_items = array_filter($all_items, function($item) {
+                    return $item['tipe'] === 'materi';
+                });
+                ?>
+                <?php if (count($materi_items) > 0): ?>
+                <div class="row g-4">
+                <?php foreach ($materi_items as $item): ?>
+                <?php
+                $file_extension = '';
+                if ($item['file_name']) {
+                    $file_extension = strtolower(pathinfo($item['file_name'], PATHINFO_EXTENSION));
+                }
+
+                $icon_class = 'fa-file';
+                $icon_color = '#3b82f6';
+                if ($file_extension === 'pdf') {
+                    $icon_class = 'fa-file-pdf';
+                    $icon_color = '#ef4444';
+                } elseif ($file_extension === 'doc' || $file_extension === 'docx') {
+                    $icon_class = 'fa-file-word';
+                    $icon_color = '#3b82f6';
+                } elseif ($file_extension === 'ppt' || $file_extension === 'pptx') {
+                    $icon_class = 'fa-file-powerpoint';
+                    $icon_color = '#dc2626';
+                } elseif ($file_extension === 'xls' || $file_extension === 'xlsx') {
+                    $icon_class = 'fa-file-excel';
+                    $icon_color = '#22c55e';
+                } elseif ($file_extension === 'jpg' || $file_extension === 'jpeg' || $file_extension === 'png') {
+                    $icon_class = 'fa-file-image';
+                    $icon_color = '#8b5cf6';
+                }
+                ?>
+                <div class="col-lg-4 col-md-6">
+                    <div class="dashboard-card">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="stat-icon" style="background: rgba(<?php echo implode(',', array_map(function($c) { return hexdec(substr(str_replace('#', '', $icon_color), $c, 2)); }, [0, 2, 4])); ?>, 0.1); color: <?php echo $icon_color; ?>;">
+                                <i class="fas <?php echo $icon_class; ?>"></i>
+                            </div>
+                            <span class="badge bg-primary"><?php echo strtoupper($file_extension); ?></span>
+                        </div>
+                        <h6 class="fw-bold mb-2"><?php echo htmlspecialchars($item['judul']); ?></h6>
+                        <p class="text-muted small mb-3">
+                            <i class="fas fa-chalkboard me-1"></i><?php echo htmlspecialchars($item['nama_kelas']); ?><br>
+                            <i class="fas fa-calendar me-1"></i><?php echo date('d M Y', strtotime($item['tanggal_dibuat'])); ?><br>
+                            <?php if ($item['file_name']): ?>
+                            <i class="fas fa-download me-1"></i><?php echo rand(1, 50); ?> Downloads
+                            <?php endif; ?>
+                        </p>
+                        <div class="d-flex gap-2">
+                            <?php if ($item['file_path']): ?>
+                            <a href="<?php echo $item['file_path']; ?>" class="btn btn-sm btn-primary flex-grow-1">
+                                <i class="fas fa-eye me-1"></i>Lihat
+                            </a>
+                            <?php else: ?>
+                            <button class="btn btn-sm btn-primary flex-grow-1 disabled">
+                                <i class="fas fa-eye me-1"></i>Lihat
+                            </button>
+                            <?php endif; ?>
+                            <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteMateri(<?php echo $item['id']; ?>)">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
                 </div>
                 <?php else: ?>
-                <form method="POST" action="" enctype="multipart/form-data">
-                    <input type="hidden" name="action" value="create_materi">
-                    
-                    <div class="info-box">
-                        <h4>ℹ️ Upload Materi</h4>
-                        <ul>
-                            <li>Upload materi pembelajaran (bukan tugas)</li>
-                            <li>Siswa dapat mengakses materi tanpa deadline</li>
-                            <li>File bersifat opsional (max 10MB)</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>Kelas <span style="color: red;">*</span></label>
-                            <select name="id_kelas" id="id_kelas_materi" required onchange="updatePelajaranOptionsMateri()">
-                                <option value="">-- Pilih Kelas --</option>
-                                <?php foreach ($kelas_list as $id_kelas => $kelas_data): ?>
-                                <option value="<?php echo $id_kelas; ?>">
-                                    <?php echo htmlspecialchars($kelas_data['nama_kelas']) . ' - ' . htmlspecialchars($kelas_data['tahun_ajaran']); ?>
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Mata Pelajaran <span style="color: red;">*</span></label>
-                            <select name="id_pelajaran" id="id_pelajaran_materi" required disabled>
-                                <option value="">-- Pilih Kelas Dulu --</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group full-width">
-                            <label>Judul Materi <span style="color: red;">*</span></label>
-                            <input type="text" name="judul_materi" required placeholder="Contoh: Materi Bab 1 - Pengenalan Aljabar">
-                        </div>
-                        
-                        <div class="form-group full-width">
-                            <label>Deskripsi Materi</label>
-                            <textarea name="deskripsi" placeholder="Jelaskan isi materi, topik yang dibahas, dll (opsional)"></textarea>
-                        </div>
-                        
-                        <div class="form-group full-width">
-                            <label>File Materi (Opsional)</label>
-                            
-                            <div style="margin-bottom: 15px;">
-                                <label style="display: inline-flex; align-items: center; margin-right: 20px; font-weight: normal; cursor: pointer;">
-                                    <input type="radio" name="use_arsip" value="upload" checked onchange="toggleFileSourceMateri()" style="margin-right: 8px; width: auto;">
-                                    Upload File Baru
-                                </label>
-                                <label style="display: inline-flex; align-items: center; font-weight: normal; cursor: pointer;">
-                                    <input type="radio" name="use_arsip" value="arsip" onchange="toggleFileSourceMateri()" style="margin-right: 8px; width: auto;">
-                                    Pilih dari Arsip
-                                </label>
-                            </div>
-                            
-                            <div id="upload_section_materi">
-                                <div class="file-input-wrapper">
-                                    <input type="file" name="file" id="file_materi" onchange="displayMateriFileName()">
-                                    <label for="file_materi" class="file-input-label">
-                                        📁 Klik untuk memilih file
-                                    </label>
-                                    <div class="file-name" id="file_materi_name"></div>
-                                </div>
-                                <small style="color: #718096; font-size: 12px; display: block; margin-top: 5px;">PDF, DOC, PPT, Excel, Gambar, ZIP (max 10MB)</small>
-                            </div>
-                            
-                            <div id="arsip_section_materi" style="display: none;">
-                                <?php if (count($arsip_list) > 0): ?>
-                                <select name="id_arsip" id="id_arsip_materi" style="width: 100%; padding: 12px 15px; border: 2px solid #e2e8f0; border-radius: 8px;">
-                                    <option value="">-- Pilih File dari Arsip --</option>
-                                    <?php foreach ($arsip_list as $arsip): ?>
-                                    <option value="<?php echo $arsip['id_arsip']; ?>" 
-                                            data-filename="<?php echo htmlspecialchars($arsip['file_name']); ?>"
-                                            data-size="<?php echo formatSize($arsip['file_size']); ?>"
-                                            data-type="<?php echo strtoupper($arsip['file_type']); ?>">
-                                        <?php echo htmlspecialchars($arsip['judul_arsip']); ?> 
-                                        (<?php echo htmlspecialchars($arsip['file_name']); ?> - <?php echo formatSize($arsip['file_size']); ?>)
-                                    </option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <div id="arsip_preview_materi" style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px; display: none;">
-                                    <strong style="color: #11998e;">File dipilih:</strong><br>
-                                    <span id="arsip_filename_materi"></span> 
-                                    (<span id="arsip_size_materi"></span> • <span id="arsip_type_materi"></span>)
-                                </div>
-                                <small style="color: #718096; font-size: 12px; display: block; margin-top: 8px;">
-                                    <a href="arsip_guru.php" target="_blank" style="color: #11998e;">Kelola Arsip →</a>
-                                </small>
-                                <?php else: ?>
-                                <div style="text-align: center; padding: 20px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffa726;">
-                                    <p style="color: #856404; margin-bottom: 10px;">📁 Belum ada file di arsip</p>
-                                    <a href="arsip_guru.php" target="_blank" class="btn btn-warning btn-sm">
-                                        Upload ke Arsip Dulu
-                                    </a>
-                                </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div style="display: flex; gap: 10px; margin-top: 20px;">
-                        <button type="submit" class="btn btn-success">✓ Upload Materi</button>
-                        <button type="button" class="btn btn-secondary" onclick="closeMateriModal()">Batal</button>
-                    </div>
-                </form>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Create Tugas (kode lama) -->
-    <div class="modal" id="createModal">
-        <div class="modal-content" style="max-width: 700px;">
-            <div class="modal-header">
-                <h3>➕ Buat Tugas Baru</h3>
-                <button class="modal-close" onclick="closeCreateModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <?php if (empty($kelas_list)): ?>
-                <div class="info-box" style="background: #fff3cd; border-left-color: #ffa726;">
-                    <h4>⚠️ Perhatian</h4>
-                    <p>Anda belum mengajar di kelas manapun.</p>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>Belum ada materi tersedia.
                 </div>
-                <?php else: ?>
-                <form method="POST" action="" enctype="multipart/form-data">
-                    <input type="hidden" name="action" value="create">
-                    
-                    <div class="info-box">
-                        <h4>ℹ️ Informasi</h4>
-                        <ul>
-                            <li>Pilih kelas dan mata pelajaran yang Anda ajar</li>
-                            <li>File materi/soal bersifat opsional (max 10MB)</li>
-                            <li>Deadline bersifat opsional</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>Kelas <span style="color: red;">*</span></label>
-                            <select name="id_kelas" id="id_kelas" required onchange="updatePelajaranOptions()">
-                                <option value="">-- Pilih Kelas --</option>
-                                <?php foreach ($kelas_list as $id_kelas => $kelas_data): ?>
-                                <option value="<?php echo $id_kelas; ?>">
-                                    <?php echo htmlspecialchars($kelas_data['nama_kelas']) . ' - ' . htmlspecialchars($kelas_data['tahun_ajaran']); ?>
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Mata Pelajaran <span style="color: red;">*</span></label>
-                            <select name="id_pelajaran" id="id_pelajaran" required disabled>
-                                <option value="">-- Pilih Kelas Dulu --</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group full-width">
-                            <label>Judul Tugas <span style="color: red;">*</span></label>
-                            <input type="text" name="judul_tugas" required placeholder="Contoh: Tugas Bab 1 - Pengenalan">
-                        </div>
-                        
-                        <div class="form-group full-width">
-                            <label>Deskripsi Tugas</label>
-                            <textarea name="deskripsi" placeholder="Jelaskan detail tugas, instruksi pengerjaan, dll (opsional)"></textarea>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Deadline (Opsional)</label>
-                            <input type="datetime-local" name="deadline">
-                            <small style="color: #718096; font-size: 12px; display: block; margin-top: 5px;">Batas waktu pengumpulan</small>
-                        </div>
-                        
-                        <div class="form-group full-width">
-                            <label>File Materi/Soal (Opsional)</label>
-                            
-                            <div style="margin-bottom: 15px;">
-                                <label style="display: inline-flex; align-items: center; margin-right: 20px; font-weight: normal; cursor: pointer;">
-                                    <input type="radio" name="use_arsip" value="upload" checked onchange="toggleFileSource()" style="margin-right: 8px; width: auto;">
-                                    Upload File Baru
-                                </label>
-                                <label style="display: inline-flex; align-items: center; font-weight: normal; cursor: pointer;">
-                                    <input type="radio" name="use_arsip" value="arsip" onchange="toggleFileSource()" style="margin-right: 8px; width: auto;">
-                                    Pilih dari Arsip
-                                </label>
-                            </div>
-                            
-                            <div id="upload_section">
-                                <div class="file-input-wrapper">
-                                    <input type="file" name="file" id="file_create" onchange="displayCreateFileName()">
-                                    <label for="file_create" class="file-input-label">
-                                        📁 Klik untuk memilih file
-                                    </label>
-                                    <div class="file-name" id="file_create_name"></div>
-                                </div>
-                                <small style="color: #718096; font-size: 12px; display: block; margin-top: 5px;">PDF, DOC, PPT, Excel, Gambar, ZIP (max 10MB)</small>
-                            </div>
-                            
-                            <div id="arsip_section" style="display: none;">
-                                <?php if (count($arsip_list) > 0): ?>
-                                <select name="id_arsip" id="id_arsip" style="width: 100%; padding: 12px 15px; border: 2px solid #e2e8f0; border-radius: 8px;">
-                                    <option value="">-- Pilih File dari Arsip --</option>
-                                    <?php foreach ($arsip_list as $arsip): ?>
-                                    <option value="<?php echo $arsip['id_arsip']; ?>" 
-                                            data-filename="<?php echo htmlspecialchars($arsip['file_name']); ?>"
-                                            data-size="<?php echo formatSize($arsip['file_size']); ?>"
-                                            data-type="<?php echo strtoupper($arsip['file_type']); ?>">
-                                        <?php echo htmlspecialchars($arsip['judul_arsip']); ?> 
-                                        (<?php echo htmlspecialchars($arsip['file_name']); ?> - <?php echo formatSize($arsip['file_size']); ?>)
-                                    </option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <div id="arsip_preview" style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px; display: none;">
-                                    <strong style="color: #11998e;">File dipilih:</strong><br>
-                                    <span id="arsip_filename"></span> 
-                                    (<span id="arsip_size"></span> • <span id="arsip_type"></span>)
-                                </div>
-                                <small style="color: #718096; font-size: 12px; display: block; margin-top: 8px;">
-                                    <a href="arsip_guru.php" target="_blank" style="color: #11998e;">Kelola Arsip →</a>
-                                </small>
-                                <?php else: ?>
-                                <div style="text-align: center; padding: 20px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffa726;">
-                                    <p style="color: #856404; margin-bottom: 10px;">📁 Belum ada file di arsip</p>
-                                    <a href="arsip_guru.php" target="_blank" class="btn btn-warning btn-sm">
-                                        Upload ke Arsip Dulu
-                                    </a>
-                                </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div style="display: flex; gap: 10px; margin-top: 20px;">
-                        <button type="submit" class="btn btn-success">✓ Buat Tugas</button>
-                        <button type="button" class="btn btn-secondary" onclick="closeCreateModal()">Batal</button>
-                    </div>
-                </form>
                 <?php endif; ?>
             </div>
         </div>
-    </div>
 
-    <!-- Modal Change Status -->
-    <div class="modal" id="statusModal">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
-                <h3>🔄 Ubah Status Tugas</h3>
-                <button class="modal-close" onclick="closeStatusModal()">&times;</button>
+        <!-- Modal Tambah Tugas -->
+        <div class="modal fade" id="modalTambahTugas" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Buat Tugas Baru</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="action" value="create">
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <div class="col-md-12">
+                                    <label class="form-label">Judul Tugas</label>
+                                    <input type="text" name="judul_tugas" class="form-control" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Mata Pelajaran</label>
+                                    <select name="id_pelajaran" class="form-select" required>
+                                        <option value="">Pilih Pelajaran</option>
+                                        <?php foreach ($kelas_pelajaran as $kp): ?>
+                                        <option value="<?php echo $kp['id_pelajaran']; ?>"><?php echo htmlspecialchars($kp['nama_pelajaran']); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Kelas</label>
+                                    <select name="id_kelas" class="form-select" required>
+                                        <option value="">Pilih Kelas</option>
+                                        <?php foreach ($kelas_pelajaran as $kp): ?>
+                                        <option value="<?php echo $kp['id_kelas']; ?>"><?php echo htmlspecialchars($kp['nama_kelas']); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">Deskripsi</label>
+                                    <textarea name="deskripsi" class="form-control" rows="3"></textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Deadline (Opsional)</label>
+                                    <input type="datetime-local" name="deadline" class="form-control">
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">File</label>
+                                    <input type="file" name="file" class="form-control">
+                                    <div class="form-text">Maksimal 10MB. Tipe file: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, JPEG, PNG, ZIP, RAR</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                            <button type="submit" class="btn btn-primary">Simpan Tugas</button>
+                        </div>
+                    </form>
+                </div>
             </div>
-            <div class="modal-body">
-                <form method="POST" action="">
-                    <input type="hidden" name="action" value="update_status">
-                    <input type="hidden" name="id_tugas" id="status_id_tugas">
-                    
-                    <div class="form-group">
-                        <label>Pilih Status Baru</label>
-                        <select name="status" id="status_new" required>
-                            <option value="aktif">Aktif</option>
-                            <option value="selesai">Selesai</option>
-                            <option value="tertutup">Tertutup</option>
-                        </select>
-                        <small style="color: #718096; font-size: 12px; display: block; margin-top: 8px;">
-                            • Aktif: Tugas dapat dikerjakan siswa<br>
-                            • Selesai: Tugas sudah selesai dikerjakan<br>
-                            • Tertutup: Tugas ditutup, tidak dapat dikerjakan
-                        </small>
+        </div>
+
+        <!-- Modal Tambah Materi -->
+        <div class="modal fade" id="modalTambahMateri" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Upload Materi Baru</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    
-                    <div style="display: flex; gap: 10px; margin-top: 20px;">
-                        <button type="submit" class="btn btn-success">✓ Ubah Status</button>
-                        <button type="button" class="btn btn-secondary" onclick="closeStatusModal()">Batal</button>
-                    </div>
-                </form>
+                    <form method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="action" value="create_materi">
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <div class="col-md-12">
+                                    <label class="form-label">Judul Materi</label>
+                                    <input type="text" name="judul_materi" class="form-control" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Mata Pelajaran</label>
+                                    <select name="id_pelajaran" class="form-select" required>
+                                        <option value="">Pilih Pelajaran</option>
+                                        <?php foreach ($kelas_pelajaran as $kp): ?>
+                                        <option value="<?php echo $kp['id_pelajaran']; ?>"><?php echo htmlspecialchars($kp['nama_pelajaran']); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Kelas</label>
+                                    <select name="id_kelas" class="form-select" required>
+                                        <option value="">Pilih Kelas</option>
+                                        <?php foreach ($kelas_pelajaran as $kp): ?>
+                                        <option value="<?php echo $kp['id_kelas']; ?>"><?php echo htmlspecialchars($kp['nama_kelas']); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">Deskripsi</label>
+                                    <textarea name="deskripsi" class="form-control" rows="3"></textarea>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label">File</label>
+                                    <input type="file" name="file" class="form-control" required>
+                                    <div class="form-text">Maksimal 10MB. Tipe file: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, JPEG, PNG, ZIP, RAR</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                            <button type="submit" class="btn btn-success">Upload Materi</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal Delete -->
-    <div class="modal" id="deleteModal">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header" style="background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);">
-                <h3>🗑️ Konfirmasi Hapus</h3>
-                <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p style="margin-bottom: 20px; color: #2d3748;">
-                    Apakah Anda yakin ingin menghapus <strong id="delete_item_name"></strong>?
-                </p>
-                <p style="color: #e53e3e; font-size: 14px; margin-bottom: 20px;">
-                    ⚠️ Data yang sudah dihapus tidak dapat dikembalikan!
-                </p>
-                <form method="POST" action="" id="deleteForm">
-                    <input type="hidden" name="action" id="delete_action">
-                    <input type="hidden" name="id_tugas" id="delete_id_tugas">
-                    <input type="hidden" name="id_materi" id="delete_id_materi">
-                    <div style="display: flex; gap: 10px;">
-                        <button type="submit" class="btn btn-danger">Hapus</button>
-                        <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Batal</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        const kelasPelajaran = <?php echo json_encode($kelas_list); ?>;
-        
-        function updatePelajaranOptions() {
-            const kelasSelect = document.getElementById('id_kelas');
-            const pelajaranSelect = document.getElementById('id_pelajaran');
-            const idKelas = kelasSelect.value;
-            
-            pelajaranSelect.innerHTML = '<option value="">-- Pilih Mata Pelajaran --</option>';
-            
-            if (idKelas && kelasPelajaran[idKelas]) {
-                pelajaranSelect.disabled = false;
-                kelasPelajaran[idKelas].pelajaran.forEach(pel => {
-                    const option = document.createElement('option');
-                    option.value = pel.id_pelajaran;
-                    option.textContent = pel.nama_pelajaran;
-                    pelajaranSelect.appendChild(option);
-                });
-            } else {
-                pelajaranSelect.disabled = true;
-            }
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        let tooltipList = [];
+
+        function isMobile() {
+            return window.innerWidth <= 768;
         }
-        
-        function updatePelajaranOptionsMateri() {
-            const kelasSelect = document.getElementById('id_kelas_materi');
-            const pelajaranSelect = document.getElementById('id_pelajaran_materi');
-            const idKelas = kelasSelect.value;
-            
-            pelajaranSelect.innerHTML = '<option value="">-- Pilih Mata Pelajaran --</option>';
-            
-            if (idKelas && kelasPelajaran[idKelas]) {
-                pelajaranSelect.disabled = false;
-                kelasPelajaran[idKelas].pelajaran.forEach(pel => {
-                    const option = document.createElement('option');
-                    option.value = pel.id_pelajaran;
-                    option.textContent = pel.nama_pelajaran;
-                    pelajaranSelect.appendChild(option);
-                });
-            } else {
-                pelajaranSelect.disabled = true;
-            }
+
+        if (isMobile()) {
+            sidebar.classList.add('collapsed');
+            mainContent.classList.add('expanded');
         }
-        
-        function displayCreateFileName() {
-            const input = document.getElementById('file_create');
-            const fileNameDisplay = document.getElementById('file_create_name');
-            
-            if (input.files.length > 0) {
-                const file = input.files[0];
-                const size = (file.size / 1024 / 1024).toFixed(2);
-                fileNameDisplay.textContent = `📎 ${file.name} (${size} MB)`;
-            } else {
-                fileNameDisplay.textContent = '';
-            }
-        }
-        
-        function displayMateriFileName() {
-            const input = document.getElementById('file_materi');
-            const fileNameDisplay = document.getElementById('file_materi_name');
-            
-            if (input.files.length > 0) {
-                const file = input.files[0];
-                const size = (file.size / 1024 / 1024).toFixed(2);
-                fileNameDisplay.textContent = `📎 ${file.name} (${size} MB)`;
-            } else {
-                fileNameDisplay.textContent = '';
-            }
-        }
-        
-        function toggleFileSource() {
-            const useArsip = document.querySelector('input[name="use_arsip"]:checked').value;
-            const uploadSection = document.getElementById('upload_section');
-            const arsipSection = document.getElementById('arsip_section');
-            
-            if (useArsip === 'arsip') {
-                uploadSection.style.display = 'none';
-                arsipSection.style.display = 'block';
-                document.getElementById('file_create').value = '';
-                document.getElementById('file_create_name').textContent = '';
-            } else {
-                uploadSection.style.display = 'block';
-                arsipSection.style.display = 'none';
-                const arsipSelect = document.getElementById('id_arsip');
-                if (arsipSelect) {
-                    arsipSelect.value = '';
-                    document.getElementById('arsip_preview').style.display = 'none';
-                }
-            }
-        }
-        
-        function toggleFileSourceMateri() {
-            const useArsip = document.querySelectorAll('#materiModal input[name="use_arsip"]');
-            let selected = '';
-            useArsip.forEach(radio => {
-                if (radio.checked) selected = radio.value;
-            });
-            
-            const uploadSection = document.getElementById('upload_section_materi');
-            const arsipSection = document.getElementById('arsip_section_materi');
-            
-            if (selected === 'arsip') {
-                uploadSection.style.display = 'none';
-                arsipSection.style.display = 'block';
-                document.getElementById('file_materi').value = '';
-                document.getElementById('file_materi_name').textContent = '';
-            } else {
-                uploadSection.style.display = 'block';
-                arsipSection.style.display = 'none';
-                const arsipSelect = document.getElementById('id_arsip_materi');
-                if (arsipSelect) {
-                    arsipSelect.value = '';
-                    document.getElementById('arsip_preview_materi').style.display = 'none';
-                }
-            }
-        }
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            const arsipSelect = document.getElementById('id_arsip');
-            if (arsipSelect) {
-                arsipSelect.addEventListener('change', function() {
-                    const selectedOption = this.options[this.selectedIndex];
-                    const preview = document.getElementById('arsip_preview');
-                    
-                    if (this.value) {
-                        document.getElementById('arsip_filename').textContent = selectedOption.dataset.filename;
-                        document.getElementById('arsip_size').textContent = selectedOption.dataset.size;
-                        document.getElementById('arsip_type').textContent = selectedOption.dataset.type;
-                        preview.style.display = 'block';
-                    } else {
-                        preview.style.display = 'none';
-                    }
+
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('expanded');
+            updateTooltips();
+        });
+
+        function updateTooltips() {
+            tooltipList.forEach(tooltip => tooltip.dispose());
+            tooltipList = [];
+
+            if (sidebar.classList.contains('collapsed')) {
+                const tooltipElements = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+                tooltipList = [...tooltipElements].map(el => {
+                    return new bootstrap.Tooltip(el, {
+                        trigger: 'hover'
+                    });
                 });
             }
-            
-            const arsipSelectMateri = document.getElementById('id_arsip_materi');
-            if (arsipSelectMateri) {
-                arsipSelectMateri.addEventListener('change', function() {
-                    const selectedOption = this.options[this.selectedIndex];
-                    const preview = document.getElementById('arsip_preview_materi');
-                    
-                    if (this.value) {
-                        document.getElementById('arsip_filename_materi').textContent = selectedOption.dataset.filename;
-                        document.getElementById('arsip_size_materi').textContent = selectedOption.dataset.size;
-                        document.getElementById('arsip_type_materi').textContent = selectedOption.dataset.type;
-                        preview.style.display = 'block';
-                    } else {
-                        preview.style.display = 'none';
-                    }
-                });
+        }
+
+        updateTooltips();
+
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+
+        themeToggle.addEventListener('click', () => {
+            body.classList.toggle('dark-theme');
+            body.classList.toggle('light-theme');
+
+            const icon = themeToggle.querySelector('i');
+            if (body.classList.contains('dark-theme')) {
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+                localStorage.setItem('theme', 'light');
             }
         });
-        
-        function openMateriModal() {
-            document.getElementById('materiModal').classList.add('active');
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            body.classList.remove('light-theme');
+            body.classList.add('dark-theme');
+            document.querySelector('#themeToggle i').classList.replace('fa-moon', 'fa-sun');
         }
-        
-        function closeMateriModal() {
-            document.getElementById('materiModal').classList.remove('active');
-        }
-        
-        function openCreateModal() {
-            document.getElementById('createModal').classList.add('active');
-        }
-        
-        function closeCreateModal() {
-            document.getElementById('createModal').classList.remove('active');
-        }
-        
-        function changeStatus(idTugas, currentStatus) {
-            document.getElementById('status_id_tugas').value = idTugas;
-            document.getElementById('status_new').value = currentStatus;
-            document.getElementById('statusModal').classList.add('active');
-        }
-        
-        function closeStatusModal() {
-            document.getElementById('statusModal').classList.remove('active');
-        }
-        
-        function deleteItem(tipe, id, nama) {
-            if (tipe === 'tugas') {
-                document.getElementById('delete_action').value = 'delete';
-                document.getElementById('delete_id_tugas').value = id;
-                document.getElementById('delete_id_materi').value = '';
-            } else {
-                document.getElementById('delete_action').value = 'delete_materi';
-                document.getElementById('delete_id_materi').value = id;
-                document.getElementById('delete_id_tugas').value = '';
+
+        window.addEventListener('resize', () => {
+            if (isMobile() && !sidebar.classList.contains('collapsed')) {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('expanded');
+                updateTooltips();
             }
-            document.getElementById('delete_item_name').textContent = nama;
-            document.getElementById('deleteModal').classList.add('active');
+        });
+
+        function confirmDeleteTugas(id) {
+            if(confirm('Apakah Anda yakin ingin menghapus tugas ini?')) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = '<input type="hidden" name="action" value="delete"><input type="hidden" name="id_tugas" value="'+id+'">';
+                document.body.appendChild(form);
+                form.submit();
+            }
         }
-        
-        function closeDeleteModal() {
-            document.getElementById('deleteModal').classList.remove('active');
+
+        function confirmDeleteMateri(id) {
+            if(confirm('Apakah Anda yakin ingin menghapus materi ini?')) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = '<input type="hidden" name="action" value="delete_materi"><input type="hidden" name="id_materi" value="'+id+'">';
+                document.body.appendChild(form);
+                form.submit();
+            }
         }
-        
-        window.onclick = function(event) {
-            const modals = ['createModal', 'materiModal', 'statusModal', 'deleteModal'];
-            modals.forEach(modalId => {
-                const modal = document.getElementById(modalId);
-                if (event.target === modal) {
-                    modal.classList.remove('active');
-                }
-            });
-        }
-        
-        setTimeout(function() {
-            const alerts = document.querySelectorAll('.alert');
-            alerts.forEach(function(alert) {
-                alert.style.transition = 'opacity 0.5s';
-                alert.style.opacity = '0';
-                setTimeout(function() {
-                    alert.style.display = 'none';
-                }, 500);
-            });
-        }, 5000);
     </script>
 </body>
 </html>

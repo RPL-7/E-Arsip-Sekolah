@@ -14,29 +14,29 @@ $error_message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete') {
     try {
         $id_arsip = $_POST['id_arsip'];
-        
+
         // Ambil data arsip
         $stmt = $pdo->prepare("SELECT * FROM arsip WHERE id_arsip = ?");
         $stmt->execute([$id_arsip]);
         $arsip = $stmt->fetch();
-        
+
         if (!$arsip) {
             throw new Exception("Arsip tidak ditemukan!");
         }
-        
+
         // Hapus file fisik
         if (file_exists($arsip['file_path'])) {
             if (!unlink($arsip['file_path'])) {
                 throw new Exception("Gagal menghapus file fisik!");
             }
         }
-        
+
         // Hapus dari database
         $stmt = $pdo->prepare("DELETE FROM arsip WHERE id_arsip = ?");
         $stmt->execute([$id_arsip]);
-        
+
         $success_message = "Arsip berhasil dihapus!";
-        
+
     } catch (Exception $e) {
         $error_message = $e->getMessage();
     }
@@ -49,13 +49,13 @@ $uploader_filter = $_GET['uploader'] ?? '';
 
 // Query arsip
 $query = "
-    SELECT a.*, 
-           CASE 
+    SELECT a.*,
+           CASE
                WHEN a.tipe_uploader = 'guru' THEN g.nama_guru
                WHEN a.tipe_uploader = 'siswa' THEN s.nama_siswa
                ELSE 'Admin'
            END as nama_uploader,
-           CASE 
+           CASE
                WHEN a.tipe_uploader = 'guru' THEN g.email
                WHEN a.tipe_uploader = 'siswa' THEN s.nis
                ELSE '-'
@@ -68,7 +68,7 @@ $query = "
 $params = [];
 
 if (!empty($search)) {
-    $query .= " AND (a.judul_arsip LIKE ? OR a.file_name LIKE ? OR 
+    $query .= " AND (a.judul_arsip LIKE ? OR a.file_name LIKE ? OR
                      g.nama_guru LIKE ? OR s.nama_siswa LIKE ?)";
     $search_term = "%$search%";
     $params[] = $search_term;
@@ -126,286 +126,378 @@ function formatSize($bytes) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manajemen Arsip - Admin</title>
-    <link rel="stylesheet" href="../css/dashboard_admin.css">
-    <style>
-        .main-content { padding: 30px; }
-        .page-header { margin-bottom: 30px; }
-        .page-header h2 { color: #2d3748; font-size: 28px; margin-bottom: 5px; }
-        .page-header p { color: #718096; }
-        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 4px solid #667eea; }
-        .stat-card h3 { font-size: 14px; color: #718096; margin-bottom: 8px; }
-        .stat-card .number { font-size: 28px; font-weight: bold; color: #667eea; }
-        .card { background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 30px; overflow: hidden; }
-        .card-body { padding: 25px; }
-        .alert { padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
-        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .alert-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .filter-bar { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
-        .filter-bar input, .filter-bar select { padding: 10px 15px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; }
-        .filter-bar input { flex: 1; min-width: 250px; }
-        .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.3s ease; text-decoration: none; display: inline-block; }
-        .btn-primary { background: #667eea; color: white; }
-        .btn-secondary { background: #6c757d; color: white; }
-        .btn-danger { background: #f5576c; color: white; }
-        .btn-info { background: #26c6da; color: white; }
-        .btn-success { background: #38ef7d; color: white; }
-        .btn-sm { padding: 6px 12px; font-size: 12px; }
-        .btn:hover { opacity: 0.9; transform: translateY(-2px); }
-        .table-responsive { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
-        th { background: #f7fafc; font-weight: 600; color: #2d3748; font-size: 14px; }
-        tr:hover { background: #f7fafc; }
-        .badge { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
-        .badge-guru { background: #d1ecf1; color: #0c5460; }
-        .badge-siswa { background: #d4edda; color: #155724; }
-        .badge-admin { background: #fff3cd; color: #856404; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
-        .modal.active { display: flex; }
-        .modal-content { background: white; border-radius: 12px; width: 90%; max-width: 500px; }
-        .modal-header { background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center; border-radius: 12px 12px 0 0; }
-        .modal-header h3 { font-size: 20px; }
-        .modal-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; }
-        .modal-body { padding: 25px; }
-        .empty-state { text-align: center; padding: 60px 20px; color: #a0aec0; }
-        @media (max-width: 768px) {
-            .table-responsive { font-size: 13px; }
-            th, td { padding: 8px; }
-        }
-    </style>
+    <title>Manajemen Arsip - E-ARSIP</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/manage_arsip.css">
 </head>
-<body>
-    <div class="navbar">
-        <div class="navbar-content">
-            <h1><span>📁</span> Manajemen Arsip</h1>
-            <div class="user-info">
-                <div class="user-badge"><strong><?php echo htmlspecialchars($user_name); ?></strong></div>
-                <a href="../dashboard/dashboard_admin.php" class="logout-btn">← Kembali</a>
+<body class="light-theme">
+
+    <div class="header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-3">
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="logo">MANAJEMEN ARSIP</div>
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+            <button class="theme-toggle" id="themeToggle">
+                <i class="fas fa-moon"></i>
+            </button>
+            <div class="position-relative">
+                <i class="fas fa-bell" style="font-size: 1.25rem; cursor: pointer;"></i>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem;">3</span>
+            </div>
+            <div class="dropdown">
+                <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
+                    <img src="https://ui-avatars.com/api/?name=<?php echo urlencode($user_name); ?>&background=10b981&color=fff" alt="Profile" class="profile-img">
+                    <span class="ms-2 d-none d-md-block"><?php echo htmlspecialchars($user_name); ?></span>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profile</a></li>
+                    <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Settings</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="../logout.php"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                </ul>
             </div>
         </div>
     </div>
 
-    <div class="container">
-        <aside class="sidebar">
-            <a href="../dashboard/dashboard_admin.php" class="menu-item">
-                <span>📊</span> Dashboard
+    <div class="sidebar" id="sidebar">
+        <div class="menu-section">
+            <div class="menu-section-title">Admin Menu</div>
+            <a href="../dashboard/dashboard_admin.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Dashboard">
+                <i class="fas fa-home"></i>
+                <span>DASHBOARD</span>
             </a>
-            <a href="../manage/manage_siswa.php" class="menu-item">
-                <span>👥</span> Manajemen Siswa
+            <a href="../manage/manage_siswa.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Manajemen Siswa">
+                <i class="fas fa-user-graduate"></i>
+                <span>MANAJEMEN SISWA</span>
             </a>
-            <a href="../manage/manage_guru.php" class="menu-item">
-                <span>👨‍🏫</span> Manajemen Guru
+            <a href="../manage/manage_guru.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Manajemen Guru">
+                <i class="fas fa-chalkboard-teacher"></i>
+                <span>MANAJEMEN GURU</span>
             </a>
-            <a href="../manage/manage_kelas.php" class="menu-item">
-                <span>🏫</span> Manajemen Kelas
+            <a href="../manage/manage_kelas.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Manajemen Kelas">
+                <i class="fas fa-school"></i>
+                <span>MANAJEMEN KELAS</span>
             </a>
-            <a href="../manage/manage_pelajaran.php" class="menu-item">
-                <span>📚</span> Manajemen Pelajaran
+            <a href="../manage/manage_pelajaran.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Manajemen Pelajaran">
+                <i class="fas fa-book"></i>
+                <span>MANAJEMEN PELAJARAN</span>
             </a>
-            <a href="manage_arsip.php" class="menu-item active">
-                <span>📁</span> Manajemen Arsip
+            <a href="manage_arsip.php" class="menu-item active" data-bs-toggle="tooltip" data-bs-placement="right" title="Manajemen Arsip">
+                <i class="fas fa-archive"></i>
+                <span>MANAJEMEN ARSIP</span>
             </a>
-        </aside>
+        </div>
 
-        <main class="main-content">
-            <?php if ($success_message): ?>
-            <div class="alert alert-success"><?php echo $success_message; ?></div>
-            <?php endif; ?>
-            
-            <?php if ($error_message): ?>
-            <div class="alert alert-danger"><?php echo $error_message; ?></div>
-            <?php endif; ?>
+        <div class="menu-section">
+            <a href="../logout.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Log Out">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>LOG OUT</span>
+            </a>
+        </div>
+    </div>
 
-            <div class="page-header">
-                <h2>Manajemen Arsip Sistem</h2>
-                <p>Kelola semua arsip yang diupload oleh guru dan siswa</p>
-            </div>
+    <div class="main-content" id="mainContent">
+        <div class="mb-4">
+            <h2 class="mb-1">📁 Manajemen Arsip</h2>
+            <p class="text-secondary">Kelola semua arsip yang diupload oleh guru dan siswa</p>
+        </div>
 
-            <!-- Statistics -->
-            <div class="stats-row">
-                <div class="stat-card">
-                    <h3>Total Arsip</h3>
-                    <div class="number"><?php echo $total_arsip; ?></div>
-                </div>
-                <div class="stat-card" style="border-left-color: #26c6da;">
-                    <h3>Arsip Guru</h3>
-                    <div class="number" style="color: #26c6da;"><?php echo $arsip_guru; ?></div>
-                </div>
-                <div class="stat-card" style="border-left-color: #38ef7d;">
-                    <h3>Arsip Siswa</h3>
-                    <div class="number" style="color: #38ef7d;"><?php echo $arsip_siswa; ?></div>
-                </div>
-                <div class="stat-card" style="border-left-color: #ffa726;">
-                    <h3>Total Ukuran</h3>
-                    <div class="number" style="color: #ffa726; font-size: 20px;"><?php echo formatSize($total_size); ?></div>
-                </div>
-            </div>
+        <?php if ($success_message): ?>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <?php echo $success_message; ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <?php endif; ?>
 
-            <!-- Filter -->
-            <div class="card">
-                <div class="card-body" style="padding: 20px;">
-                    <form method="GET" class="filter-bar">
-                        <input type="text" name="search" placeholder="Cari judul, nama file, atau uploader..." value="<?php echo htmlspecialchars($search); ?>">
-                        <select name="tipe">
-                            <option value="">Semua Tipe</option>
-                            <option value="guru" <?php echo $tipe_filter === 'guru' ? 'selected' : ''; ?>>Guru</option>
-                            <option value="siswa" <?php echo $tipe_filter === 'siswa' ? 'selected' : ''; ?>>Siswa</option>
-                        </select>
-                        <button type="submit" class="btn btn-primary">🔍 Cari</button>
-                        <?php if (!empty($search) || !empty($tipe_filter) || !empty($uploader_filter)): ?>
-                        <a href="manage_arsip.php" class="btn btn-secondary">Reset</a>
-                        <?php endif; ?>
-                    </form>
-                </div>
-            </div>
+        <?php if ($error_message): ?>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <?php echo $error_message; ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <?php endif; ?>
 
-            <!-- Tabel Arsip -->
-            <div class="card">
-                <div class="card-body">
-                    <h3 style="margin-bottom: 20px;">Daftar Arsip (<?php echo count($all_arsip); ?>)</h3>
-                    
-                    <?php if (count($all_arsip) > 0): ?>
-                    <div class="table-responsive">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>No</th>
-                                    <th>Judul Arsip</th>
-                                    <th>Nama File</th>
-                                    <th>Ukuran</th>
-                                    <th>Tipe</th>
-                                    <th>Diupload Oleh</th>
-                                    <th>Tanggal Upload</th>
-                                    <th>Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($all_arsip as $idx => $arsip): ?>
-                                <?php
-                                $badge_class = 'badge-guru';
-                                if ($arsip['tipe_uploader'] === 'siswa') $badge_class = 'badge-siswa';
-                                elseif ($arsip['tipe_uploader'] === 'admin') $badge_class = 'badge-admin';
-                                
-                                $icon_map = [
-                                    'pdf' => '📄', 'doc' => '📝', 'docx' => '📝',
-                                    'xls' => '📊', 'xlsx' => '📊',
-                                    'ppt' => '📊', 'pptx' => '📊',
-                                    'jpg' => '🖼️', 'jpeg' => '🖼️', 'png' => '🖼️',
-                                    'zip' => '🗜️', 'rar' => '🗜️'
-                                ];
-                                $icon = $icon_map[$arsip['file_type']] ?? '📁';
-                                ?>
-                                <tr>
-                                    <td><?php echo $idx + 1; ?></td>
-                                    <td>
-                                        <strong><?php echo htmlspecialchars($arsip['judul_arsip']); ?></strong>
-                                    </td>
-                                    <td>
-                                        <?php echo $icon; ?> <?php echo htmlspecialchars($arsip['file_name']); ?>
-                                    </td>
-                                    <td><?php echo formatSize($arsip['file_size']); ?></td>
-                                    <td>
-                                        <span class="badge <?php echo $badge_class; ?>">
-                                            <?php echo ucfirst($arsip['tipe_uploader']); ?>
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <strong><?php echo htmlspecialchars($arsip['nama_uploader']); ?></strong>
-                                        <br>
-                                        <small style="color: #718096;">
-                                            <?php echo htmlspecialchars($arsip['info_uploader']); ?>
-                                        </small>
-                                    </td>
-                                    <td>
-                                        <?php echo date('d/m/Y H:i', strtotime($arsip['tanggal_upload'])); ?>
-                                    </td>
-                                    <td>
-                                        <a href="<?php echo htmlspecialchars($arsip['file_path']); ?>" target="_blank" class="btn btn-info btn-sm">
-                                            👁️ Lihat
-                                        </a>
-                                        <a href="<?php echo htmlspecialchars($arsip['file_path']); ?>" download class="btn btn-success btn-sm">
-                                            📥 Download
-                                        </a>
-                                        <button class="btn btn-danger btn-sm" onclick="deleteArsip(<?php echo $arsip['id_arsip']; ?>, '<?php echo htmlspecialchars($arsip['judul_arsip']); ?>', '<?php echo htmlspecialchars($arsip['nama_uploader']); ?>')">
-                                            🗑️ Hapus
-                                        </button>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+        <!-- Stats Summary -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="stat-card blue">
+                    <div class="stat-icon blue">
+                        <i class="fas fa-archive"></i>
                     </div>
+                    <div class="stat-value"><?php echo $total_arsip; ?></div>
+                    <div class="stat-label">Total Arsip</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card teal">
+                    <div class="stat-icon teal">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                    </div>
+                    <div class="stat-value"><?php echo $arsip_guru; ?></div>
+                    <div class="stat-label">Arsip Guru</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card green">
+                    <div class="stat-icon green">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                    <div class="stat-value"><?php echo $arsip_siswa; ?></div>
+                    <div class="stat-label">Arsip Siswa</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card orange">
+                    <div class="stat-icon orange">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <div class="stat-value"><?php echo formatSize($total_size); ?></div>
+                    <div class="stat-label">Total Ukuran</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter -->
+        <div class="dashboard-card mb-4">
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <label class="form-label">Cari Arsip</label>
+                    <input type="text" name="search" class="form-control" placeholder="Cari judul, nama file, atau uploader..." value="<?php echo htmlspecialchars($search); ?>">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Tipe Uploader</label>
+                    <select name="tipe" class="form-select">
+                        <option value="">Semua Tipe</option>
+                        <option value="guru" <?php echo $tipe_filter === 'guru' ? 'selected' : ''; ?>>Guru</option>
+                        <option value="siswa" <?php echo $tipe_filter === 'siswa' ? 'selected' : ''; ?>>Siswa</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search me-2"></i>Cari
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <?php if (!empty($search) || !empty($tipe_filter) || !empty($uploader_filter)): ?>
+                    <a href="manage_arsip.php" class="btn btn-secondary w-100">Reset</a>
                     <?php else: ?>
-                    <div class="empty-state">
-                        <div style="font-size: 64px; margin-bottom: 20px;">📁</div>
-                        <h3 style="margin-bottom: 10px; color: #718096;">Tidak Ada Arsip</h3>
-                        <p>Belum ada arsip yang diupload di sistem</p>
-                    </div>
+                    <div class="w-100"></div>
                     <?php endif; ?>
                 </div>
             </div>
-        </main>
+        </div>
+
+        <!-- Tabel Arsip -->
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold mb-0">Daftar Arsip (<?php echo count($all_arsip); ?>)</h5>
+            </div>
+
+            <?php if (count($all_arsip) > 0): ?>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Judul Arsip</th>
+                            <th>Nama File</th>
+                            <th>Ukuran</th>
+                            <th>Tipe</th>
+                            <th>Diupload Oleh</th>
+                            <th>Tanggal Upload</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($all_arsip as $idx => $arsip): ?>
+                        <?php
+                        $badge_class = 'bg-info';
+                        if ($arsip['tipe_uploader'] === 'siswa') $badge_class = 'bg-success';
+                        elseif ($arsip['tipe_uploader'] === 'admin') $badge_class = 'bg-warning text-dark';
+
+                        $icon_map = [
+                            'pdf' => 'fa-file-pdf text-danger',
+                            'doc' => 'fa-file-word text-primary', 'docx' => 'fa-file-word text-primary',
+                            'xls' => 'fa-file-excel text-success', 'xlsx' => 'fa-file-excel text-success',
+                            'ppt' => 'fa-file-powerpoint text-warning', 'pptx' => 'fa-file-powerpoint text-warning',
+                            'jpg' => 'fa-file-image text-info', 'jpeg' => 'fa-file-image text-info', 'png' => 'fa-file-image text-info',
+                            'zip' => 'fa-file-archive text-warning', 'rar' => 'fa-file-archive text-warning'
+                        ];
+                        $icon = $icon_map[$arsip['file_type']] ?? 'fa-file text-secondary';
+                        ?>
+                        <tr>
+                            <td><?php echo $idx + 1; ?></td>
+                            <td>
+                                <strong><?php echo htmlspecialchars($arsip['judul_arsip']); ?></strong>
+                            </td>
+                            <td>
+                                <i class="fas <?php echo $icon; ?> me-2"></i><?php echo htmlspecialchars($arsip['file_name']); ?>
+                            </td>
+                            <td><?php echo formatSize($arsip['file_size']); ?></td>
+                            <td>
+                                <span class="badge <?php echo $badge_class; ?>">
+                                    <?php echo ucfirst($arsip['tipe_uploader']); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <strong><?php echo htmlspecialchars($arsip['nama_uploader']); ?></strong>
+                                <br>
+                                <small class="text-muted">
+                                    <?php echo htmlspecialchars($arsip['info_uploader']); ?>
+                                </small>
+                            </td>
+                            <td>
+                                <?php echo date('d M Y H:i', strtotime($arsip['tanggal_upload'])); ?>
+                            </td>
+                            <td>
+                                <a href="<?php echo htmlspecialchars($arsip['file_path']); ?>" target="_blank" class="btn btn-sm btn-outline-primary me-1">
+                                    <i class="fas fa-eye me-1"></i>Lihat
+                                </a>
+                                <a href="<?php echo htmlspecialchars($arsip['file_path']); ?>" download class="btn btn-sm btn-outline-success me-1">
+                                    <i class="fas fa-download me-1"></i>Download
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteArsip(<?php echo $arsip['id_arsip']; ?>, '<?php echo htmlspecialchars($arsip['judul_arsip']); ?>', '<?php echo htmlspecialchars($arsip['nama_uploader']); ?>')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php else: ?>
+            <div class="text-center py-5">
+                <div style="font-size: 64px; margin-bottom: 20px;">📁</div>
+                <h3 class="mb-3">Tidak Ada Arsip</h3>
+                <p class="text-muted">Belum ada arsip yang diupload di sistem</p>
+            </div>
+            <?php endif; ?>
+        </div>
     </div>
 
     <!-- Modal Delete -->
-    <div class="modal" id="deleteModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>🗑️ Konfirmasi Hapus Arsip</h3>
-                <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p style="margin-bottom: 20px; color: #2d3748;">
-                    Apakah Anda yakin ingin menghapus arsip <strong id="delete_arsip_name"></strong>?
-                </p>
-                <p style="color: #718096; font-size: 14px; margin-bottom: 15px;">
-                    Diupload oleh: <strong id="delete_uploader_name"></strong>
-                </p>
-                <p style="color: #e53e3e; font-size: 14px; margin-bottom: 20px;">
-                    ⚠️ File yang sudah dihapus tidak dapat dikembalikan!
-                </p>
-                <form method="POST" action="">
-                    <input type="hidden" name="action" value="delete">
-                    <input type="hidden" name="id_arsip" id="delete_id_arsip">
-                    <div style="display: flex; gap: 10px;">
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">🗑️ Konfirmasi Hapus Arsip</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">
+                        Apakah Anda yakin ingin menghapus arsip <strong id="delete_arsip_name"></strong>?
+                    </p>
+                    <p class="text-muted">
+                        Diupload oleh: <strong id="delete_uploader_name"></strong>
+                    </p>
+                    <p class="text-danger">
+                        ⚠️ File yang sudah dihapus tidak dapat dikembalikan!
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <form method="POST" action="" class="d-inline">
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="id_arsip" id="delete_id_arsip">
                         <button type="submit" class="btn btn-danger">Hapus</button>
-                        <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Batal</button>
-                    </div>
-                </form>
+                    </form>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                </div>
             </div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        let tooltipList = [];
+
+        function isMobile() {
+            return window.innerWidth <= 768;
+        }
+
+        if (isMobile()) {
+            sidebar.classList.add('collapsed');
+            mainContent.classList.add('expanded');
+        }
+
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('expanded');
+            updateTooltips();
+        });
+
+        function updateTooltips() {
+            tooltipList.forEach(tooltip => tooltip.dispose());
+            tooltipList = [];
+
+            if (sidebar.classList.contains('collapsed')) {
+                const tooltipElements = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+                tooltipList = [...tooltipElements].map(el => {
+                    return new bootstrap.Tooltip(el, {
+                        trigger: 'hover'
+                    });
+                });
+            }
+        }
+
+        updateTooltips();
+
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+
+        themeToggle.addEventListener('click', () => {
+            body.classList.toggle('dark-theme');
+            body.classList.toggle('light-theme');
+
+            const icon = themeToggle.querySelector('i');
+            if (body.classList.contains('dark-theme')) {
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+                localStorage.setItem('theme', 'light');
+            }
+        });
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            body.classList.remove('light-theme');
+            body.classList.add('dark-theme');
+            document.querySelector('#themeToggle i').classList.replace('fa-moon', 'fa-sun');
+        }
+
+        window.addEventListener('resize', () => {
+            if (isMobile() && !sidebar.classList.contains('collapsed')) {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('expanded');
+                updateTooltips();
+            }
+        });
+
         function deleteArsip(id, nama, uploader) {
             document.getElementById('delete_id_arsip').value = id;
             document.getElementById('delete_arsip_name').textContent = nama;
             document.getElementById('delete_uploader_name').textContent = uploader;
-            document.getElementById('deleteModal').classList.add('active');
+            new bootstrap.Modal(document.getElementById('deleteModal')).show();
         }
-        
-        function closeDeleteModal() {
-            document.getElementById('deleteModal').classList.remove('active');
-        }
-        
-        window.onclick = function(event) {
-            const modal = document.getElementById('deleteModal');
-            if (event.target === modal) {
-                closeDeleteModal();
-            }
-        }
-        
-        // Auto close alerts
+
+        // Auto close alerts after 5 seconds
         setTimeout(function() {
             const alerts = document.querySelectorAll('.alert');
             alerts.forEach(function(alert) {
-                alert.style.transition = 'opacity 0.5s';
-                alert.style.opacity = '0';
-                setTimeout(function() {
-                    alert.style.display = 'none';
-                }, 500);
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
             });
         }, 5000);
     </script>

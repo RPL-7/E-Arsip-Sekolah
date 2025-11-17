@@ -179,216 +179,285 @@ function formatSize($bytes) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Arsip Siswa - <?php echo htmlspecialchars($nama_siswa); ?></title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/arsip_siswa.css">
 </head>
-<body>
-    <div class="navbar">
-        <h1>📁 Arsip Saya</h1>
-        <div class="user-info">
-            <span><strong><?php echo htmlspecialchars($user_name); ?></strong> (<?php echo htmlspecialchars($nis); ?>)</span>
-            <a href="../dashboard/dashboard_siswa.php" class="btn btn-back">← Kembali</a>
+<body class="light-theme">
+
+    <!-- Header -->
+    <div class="header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-3">
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="logo">ARSIP</div>
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+            <button class="theme-toggle" id="themeToggle">
+                <i class="fas fa-moon"></i>
+            </button>
+            <div class="position-relative">
+                <i class="fas fa-bell" style="font-size: 1.25rem; cursor: pointer;"></i>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem;">0</span>
+            </div>
+            <div class="dropdown">
+                <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <img src="https://ui-avatars.com/api/?name=<?php echo urlencode($nama_siswa); ?>&background=10b981&color=fff" alt="Profile" class="profile-img">
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="../profil/profil_siswa.php"><i class="fas fa-user me-2"></i>Profile</a></li>
+                    <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Settings</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="../../login.php"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                </ul>
+            </div>
         </div>
     </div>
 
-    <div class="container">
-        <div class="page-header">
-            <div class="page-header-text">
-                <h2>Manajemen Arsip Pribadi</h2>
-                <p>Upload dan kelola file arsip pribadi Anda</p>
-            </div>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="menu-section">
+            <div class="menu-section-title">Main Menu</div>
+            <a href="../dashboard/dashboard_siswa.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Dashboard">
+                <i class="fas fa-home"></i>
+                <span>DASHBOARD</span>
+            </a>
+            <a href="../tugas/tugas_siswa.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Daftar Tugas">
+                <i class="fas fa-tasks"></i>
+                <span>DAFTAR TUGAS</span>
+            </a>
+            <a href="../nilai/nilai_siswa.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Daftar Nilai">
+                <i class="fas fa-chart-line"></i>
+                <span>DAFTAR NILAI</span>
+            </a>
+            <a href="../arsip/arsip_siswa.php" class="menu-item active" data-bs-toggle="tooltip" data-bs-placement="right" title="Arsip Materi">
+                <i class="fas fa-folder-open"></i>
+                <span>ARSIP</span>
+            </a>
+        </div>
+
+        <div class="menu-section">
+            <div class="menu-section-title">Profil</div>
+            <a href="../profil/profil_siswa.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Profil Saya">
+                <i class="fas fa-id-card"></i>
+                <span>PROFIL SAYA</span>
+            </a>
+        </div>
+
+        <div class="menu-section">
+            <a href="../../login.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Log Out">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>LOG OUT</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <!-- Page Header -->
+        <div class="mb-4">
+            <h2 class="mb-1">📁 Arsip Saya</h2>
+            <p class="text-secondary">Upload dan kelola file arsip pribadi Anda</p>
         </div>
 
         <?php if ($success_message): ?>
         <div class="alert alert-success"><?php echo $success_message; ?></div>
         <?php endif; ?>
-        
+
         <?php if ($error_message): ?>
         <div class="alert alert-danger"><?php echo $error_message; ?></div>
         <?php endif; ?>
 
         <!-- Statistics -->
-        <div class="stats-row">
-            <div class="stat-card">
-                <h3>Total File</h3>
-                <div class="number"><?php echo count($all_arsip); ?></div>
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="stat-card blue">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="stat-label">Total File</div>
+                            <div class="stat-value"><?php echo count($all_arsip); ?></div>
+                            <small class="text-muted">Arsip yang Anda upload</small>
+                        </div>
+                        <div class="stat-icon blue">
+                            <i class="fas fa-file"></i>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="stat-card" style="border-left-color: #38ef7d;">
-                <h3>Total Ukuran</h3>
-                <div class="number" style="color: #38ef7d; font-size: 20px;"><?php echo formatSize($total_size); ?></div>
+            <div class="col-md-4">
+                <div class="stat-card green">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="stat-label">Total Ukuran</div>
+                            <div class="stat-value"><?php echo formatSize($total_size); ?></div>
+                            <small class="text-success"><i class="fas fa-check-circle"></i> Dalam batas aman</small>
+                        </div>
+                        <div class="stat-icon green">
+                            <i class="fas fa-database"></i>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="stat-card" style="border-left-color: #ffa726;">
-                <h3>Folder</h3>
-                <div class="number" style="color: #ffa726; font-size: 18px;"><?php echo htmlspecialchars($nis); ?></div>
+            <div class="col-md-4">
+                <div class="stat-card purple">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="stat-label">Folder</div>
+                            <div class="stat-value"><?php echo htmlspecialchars($nis); ?></div>
+                            <small class="text-muted">Kode siswa Anda</small>
+                        </div>
+                        <div class="stat-icon purple">
+                            <i class="fas fa-folder"></i>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
         <!-- Form Upload -->
-        <div class="card">
-            <div class="card-header">
-                <h3>📤 Upload File Baru</h3>
+        <div class="dashboard-card mb-4">
+            <h5 class="card-title">📤 Upload File Baru</h5>
+            <div class="info-box mb-4 p-3 bg-light rounded">
+                <h6 class="mb-3"><i class="fas fa-info-circle me-2"></i>Ketentuan Upload</h6>
+                <ul class="mb-0">
+                    <li>Ukuran file maksimal: <strong>10MB</strong></li>
+                    <li>Tipe file yang diizinkan: <strong>PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, PNG, ZIP, RAR</strong></li>
+                    <li>File akan disimpan di folder pribadi Anda: <strong>arsip/siswa/<?php echo htmlspecialchars($nis); ?>/</strong></li>
+                    <li>Gunakan untuk menyimpan: <strong>Catatan, Tugas, Materi, atau File Penting Lainnya</strong></li>
+                </ul>
             </div>
-            <div class="card-body">
-                <div class="info-box">
-                    <h4>ℹ️ Ketentuan Upload</h4>
-                    <ul>
-                        <li>Ukuran file maksimal: <strong>10MB</strong></li>
-                        <li>Tipe file yang diizinkan: <strong>PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, PNG, ZIP, RAR</strong></li>
-                        <li>File akan disimpan di folder pribadi Anda: <strong>arsip/siswa/<?php echo htmlspecialchars($nis); ?>/</strong></li>
-                        <li>Gunakan untuk menyimpan: <strong>Catatan, Tugas, Materi, atau File Penting Lainnya</strong></li>
-                    </ul>
+
+            <form method="POST" action="" enctype="multipart/form-data">
+                <input type="hidden" name="action" value="upload">
+
+                <div class="mb-3">
+                    <label class="form-label">Judul Arsip <span style="color: red;">*</span></label>
+                    <input type="text" name="judul_arsip" class="form-control" required placeholder="Contoh: Catatan Matematika, Tugas IPA, dll">
                 </div>
 
-                <form method="POST" action="" enctype="multipart/form-data">
-                    <input type="hidden" name="action" value="upload">
-                    
-                    <div class="form-group">
-                        <label>Judul Arsip <span style="color: red;">*</span></label>
-                        <input type="text" name="judul_arsip" required placeholder="Contoh: Catatan Matematika, Tugas IPA, dll">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Pilih File <span style="color: red;">*</span></label>
-                        <div class="file-input-wrapper">
-                            <input type="file" name="file" id="file" required onchange="displayFileName()">
-                            <label for="file" class="file-input-label">
-                                📁 Klik untuk memilih file
-                            </label>
-                            <div class="file-name" id="file-name"></div>
-                        </div>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-success">✓ Upload File</button>
-                </form>
-            </div>
+                <div class="mb-3">
+                    <label class="form-label">Pilih File <span style="color: red;">*</span></label>
+                    <input class="form-control" type="file" name="file" required>
+                    <div class="form-text">Ukuran maksimal 10MB. Tipe file: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, PNG, ZIP, RAR</div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">✓ Upload File</button>
+            </form>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="dashboard-card mb-4">
+            <form method="GET" class="filter-bar row g-3 align-items-center">
+                <div class="col-md-5">
+                    <input type="text" name="search" class="form-control" placeholder="Cari judul atau nama file..." value="<?php echo htmlspecialchars($search); ?>">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">🔍 Cari</button>
+                </div>
+                <div class="col-md-1">
+                    <?php if (!empty($search)): ?>
+                    <a href="arsip_siswa.php" class="btn btn-outline-secondary w-100">Reset</a>
+                    <?php endif; ?>
+                </div>
+            </form>
         </div>
 
         <!-- Daftar Arsip -->
-        <div class="card">
-            <div class="card-header">
-                <h3>📂 Daftar Arsip Saya</h3>
+        <div class="dashboard-card">
+            <h5 class="card-title">📂 Daftar Arsip Saya</h5>
+            <?php if (count($all_arsip) > 0): ?>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Judul Arsip</th>
+                            <th>Nama File</th>
+                            <th>Ukuran</th>
+                            <th>Tipe File</th>
+                            <th>Tanggal Upload</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($all_arsip as $index => $arsip): ?>
+                        <tr>
+                            <td><?php echo $index + 1; ?></td>
+                            <td>
+                                <strong><?php echo htmlspecialchars($arsip['judul_arsip']); ?></strong>
+                                <br><small class="text-muted"><?php echo htmlspecialchars($arsip['file_name']); ?></small>
+                            </td>
+                            <td><?php echo htmlspecialchars($arsip['file_name']); ?></td>
+                            <td><?php echo formatSize($arsip['file_size']); ?></td>
+                            <td>
+                                <span class="badge bg-primary"><?php echo strtoupper($arsip['file_type']); ?></span>
+                            </td>
+                            <td><?php echo date('d/m/Y H:i', strtotime($arsip['tanggal_upload'])); ?></td>
+                            <td>
+                                <a href="<?php echo $arsip['file_path']; ?>" class="btn btn-info btn-sm" target="_blank">
+                                    <i class="fas fa-download"></i> Buka
+                                </a>
+                                <form method="POST" style="display: inline;" onsubmit="return confirm('Yakin ingin menghapus arsip ini?')">
+                                    <input type="hidden" name="action" value="delete">
+                                    <input type="hidden" name="id_arsip" value="<?php echo $arsip['id_arsip']; ?>">
+                                    <button type="submit" class="btn btn-danger btn-sm">
+                                        <i class="fas fa-trash"></i> Hapus
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
             </div>
-            <div class="card-body">
-                <form method="GET" class="filter-bar">
-                    <input type="text" name="search" placeholder="Cari judul atau nama file..." value="<?php echo htmlspecialchars($search); ?>">
-                    <button type="submit" class="btn btn-primary">🔍 Cari</button>
-                    <?php if (!empty($search)): ?>
-                    <a href="arsip_siswa.php" class="btn btn-secondary">Reset</a>
-                    <?php endif; ?>
-                </form>
-
-                <?php if (count($all_arsip) > 0): ?>
-                <div class="file-grid">
-                    <?php foreach ($all_arsip as $arsip): ?>
-                    <?php
-                    // Icon berdasarkan tipe file
-                    $icon_map = [
-                        'pdf' => '📄',
-                        'doc' => '📝', 'docx' => '📝',
-                        'xls' => '📊', 'xlsx' => '📊',
-                        'ppt' => '📊', 'pptx' => '📊',
-                        'jpg' => '🖼️', 'jpeg' => '🖼️', 'png' => '🖼️',
-                        'zip' => '🗜️', 'rar' => '🗜️'
-                    ];
-                    $icon = $icon_map[$arsip['file_type']] ?? '📁';
-                    ?>
-                    <div class="file-card">
-                        <div class="file-icon"><?php echo $icon; ?></div>
-                        <div class="file-info">
-                            <h4 title="<?php echo htmlspecialchars($arsip['judul_arsip']); ?>">
-                                <?php echo htmlspecialchars($arsip['judul_arsip']); ?>
-                            </h4>
-                            <div class="file-meta">
-                                📎 <?php echo htmlspecialchars($arsip['file_name']); ?>
-                            </div>
-                            <div class="file-meta">
-                                💾 <?php echo formatSize($arsip['file_size']); ?> • <?php echo strtoupper($arsip['file_type']); ?>
-                            </div>
-                            <div class="file-meta">
-                                🕐 <?php echo date('d/m/Y H:i', strtotime($arsip['tanggal_upload'])); ?>
-                            </div>
-                        </div>
-                        <div class="file-actions">
-                            <a href="<?php echo htmlspecialchars($arsip['file_path']); ?>" target="_blank" class="btn btn-info btn-sm">
-                                👁️ Lihat
-                            </a>
-                            <a href="<?php echo htmlspecialchars($arsip['file_path']); ?>" download class="btn btn-success btn-sm">
-                                ⬇️ Download
-                            </a>
-                            <button class="btn btn-danger btn-sm" onclick="deleteFile(<?php echo $arsip['id_arsip']; ?>, '<?php echo htmlspecialchars($arsip['judul_arsip']); ?>')">
-                                🗑️ Hapus
-                            </button>
-                        </div>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-                <?php else: ?>
-                <div style="text-align: center; padding: 40px; color: #a0aec0;">
-                    <div style="font-size: 64px; margin-bottom: 20px;">📁</div>
-                    <p>Belum ada file arsip</p>
-                    <p style="font-size: 14px; margin-top: 10px;">Upload file pertama Anda di form di atas</p>
-                </div>
-                <?php endif; ?>
+            <?php else: ?>
+            <div class="text-center py-5">
+                <div style="font-size: 64px; margin-bottom: 20px;">📂</div>
+                <h3 class="text-muted">Belum Ada Arsip</h3>
+                <p class="text-muted">Anda belum memiliki file arsip. Silakan upload file terlebih dahulu.</p>
             </div>
+            <?php endif; ?>
         </div>
     </div>
 
     <!-- Modal Delete -->
-    <div class="modal" id="deleteModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>🗑️ Konfirmasi Hapus</h3>
-                <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p style="margin-bottom: 20px; color: #2d3748;">
-                    Apakah Anda yakin ingin menghapus file <strong id="delete_file_name"></strong>?
-                </p>
-                <p style="color: #e53e3e; font-size: 14px; margin-bottom: 20px;">
-                    ⚠️ File yang sudah dihapus tidak dapat dikembalikan!
-                </p>
-                <form method="POST" action="">
-                    <input type="hidden" name="action" value="delete">
-                    <input type="hidden" name="id_arsip" id="delete_id_arsip">
-                    <div style="display: flex; gap: 10px;">
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h5 class="modal-title">🗑️ Konfirmasi Hapus</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>
+                        Apakah Anda yakin ingin menghapus file <strong id="delete_file_name"></strong>?
+                    </p>
+                    <p class="text-danger">
+                        ⚠️ File yang sudah dihapus tidak dapat dikembalikan!
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <form method="POST" action="" style="display: inline;">
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="id_arsip" id="delete_id_arsip">
                         <button type="submit" class="btn btn-danger">Hapus</button>
-                        <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Batal</button>
-                    </div>
-                </form>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        function displayFileName() {
-            const input = document.getElementById('file');
-            const fileNameDisplay = document.getElementById('file-name');
-            
-            if (input.files.length > 0) {
-                const file = input.files[0];
-                const size = (file.size / 1024 / 1024).toFixed(2);
-                fileNameDisplay.textContent = `📎 ${file.name} (${size} MB)`;
-            } else {
-                fileNameDisplay.textContent = '';
-            }
-        }
-        
         function deleteFile(id, nama) {
             document.getElementById('delete_id_arsip').value = id;
             document.getElementById('delete_file_name').textContent = nama;
-            document.getElementById('deleteModal').classList.add('active');
+            var myModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            myModal.show();
         }
-        
-        function closeDeleteModal() {
-            document.getElementById('deleteModal').classList.remove('active');
-        }
-        
-        window.onclick = function(event) {
-            const deleteModal = document.getElementById('deleteModal');
-            if (event.target === deleteModal) {
-                closeDeleteModal();
-            }
-        }
-        
+
         setTimeout(function() {
             const alerts = document.querySelectorAll('.alert');
             alerts.forEach(function(alert) {
@@ -399,6 +468,87 @@ function formatSize($bytes) {
                 }, 500);
             });
         }, 5000);
+
+        // Sidebar Toggle
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        let tooltipList = [];
+
+        function isMobile() {
+            return window.innerWidth <= 768;
+        }
+
+        if (isMobile()) {
+            sidebar.classList.add('collapsed');
+            mainContent.classList.add('expanded');
+        }
+
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('expanded');
+            updateTooltips();
+        });
+
+        function updateTooltips() {
+            tooltipList.forEach(tooltip => tooltip.dispose());
+            tooltipList = [];
+
+            if (sidebar.classList.contains('collapsed')) {
+                const tooltipElements = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+                tooltipList = [...tooltipElements].map(el => {
+                    return new bootstrap.Tooltip(el, {
+                        trigger: 'hover'
+                    });
+                });
+            }
+        }
+
+        updateTooltips();
+
+        // Theme Toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+
+        themeToggle.addEventListener('click', () => {
+            body.classList.toggle('dark-theme');
+            body.classList.toggle('light-theme');
+
+            const icon = themeToggle.querySelector('i');
+            if (body.classList.contains('dark-theme')) {
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+                localStorage.setItem('theme', 'light');
+            }
+        });
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            body.classList.remove('light-theme');
+            body.classList.add('dark-theme');
+            document.querySelector('#themeToggle i').classList.replace('fa-moon', 'fa-sun');
+        }
+
+        window.addEventListener('resize', () => {
+            if (isMobile() && !sidebar.classList.contains('collapsed')) {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('expanded');
+                updateTooltips();
+            }
+        });
+
+        // Inisialisasi dropdown
+        document.addEventListener('DOMContentLoaded', function() {
+            var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
+            var dropdownList = dropdownElementList.map(function(dropdownToggleEl) {
+                return new bootstrap.Dropdown(dropdownToggleEl);
+            });
+        });
     </script>
 </body>
 </html>

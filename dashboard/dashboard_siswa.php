@@ -5,8 +5,27 @@ require_once '../config.php';
 // Cek apakah user sudah login dan tipe user adalah siswa
 checkUserType(['siswa']);
 
+// Koneksi database
+$pdo = getDBConnection();
+
+// Ambil ID siswa dari session
+$user_id = $_SESSION['user_id'];
 $user_name = $_SESSION['user_name'];
-$user_nis = $_SESSION['user_nis'];
+
+// Ambil data siswa dari database
+$stmt = $pdo->prepare("SELECT nis, nama_siswa, id_kelas FROM user_siswa WHERE id_siswa = ?");
+$stmt->execute([$user_id]);
+$siswa_data = $stmt->fetch();
+
+if (!$siswa_data) {
+    // Jika data siswa tidak ditemukan, logout
+    header("Location: ../login.php");
+    exit();
+}
+
+$user_nis = $siswa_data['nis'];
+$user_nama = $siswa_data['nama_siswa'];
+$id_kelas = $siswa_data['id_kelas'];
 
 // Ambil parameter page dari URL, default ke 'dashboard'
 $page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
@@ -46,6 +65,103 @@ $page_titles = [
 ];
 
 $current_title = $page_titles[$page] ?? 'Dashboard Siswa';
+
+// Fungsi untuk mengecek apakah tugas sudah dikumpulkan
+function isTugasDikumpulkan($tugas, $user_id) {
+    $file_jawaban = json_decode($tugas['file_jawaban'] ?? '[]', true);
+    if (!is_array($file_jawaban)) return false;
+
+    foreach ($file_jawaban as $jawaban) {
+        if ($jawaban['id_siswa'] == $user_id) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Fungsi untuk mengecek apakah tugas sudah dinilai
+function isTugasDinilai($tugas, $user_id) {
+    $nilai_siswa = json_decode($tugas['nilai_siswa'] ?? '[]', true);
+    if (!is_array($nilai_siswa)) return false;
+
+    foreach ($nilai_siswa as $nilai) {
+        if ($nilai['id_siswa'] == $user_id) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Ambil statistik tugas berdasarkan kelas siswa
+$stats_tugas = [
+    'total_tugas' => 0,
+    'tugas_belum_dikumpulkan' => 0,
+    'tugas_dikumpulkan' => 0
+];
+
+if ($id_kelas) {
+    // Ambil semua tugas untuk kelas ini
+    $stmt = $pdo->prepare("SELECT * FROM tugas WHERE id_kelas = ?");
+    $stmt->execute([$id_kelas]);
+    $all_tugas = $stmt->fetchAll();
+
+    $stats_tugas['total_tugas'] = count($all_tugas);
+
+    foreach ($all_tugas as $tugas) {
+        $sudah_dikumpulkan = isTugasDikumpulkan($tugas, $user_id);
+        $deadline = new DateTime($tugas['deadline']);
+        $now = new DateTime();
+
+        if ($deadline < $now && !$sudah_dikumpulkan) {
+            $stats_tugas['tugas_belum_dikumpulkan']++;
+        }
+
+        if ($sudah_dikumpulkan) {
+            $stats_tugas['tugas_dikumpulkan']++;
+        }
+    }
+}
+
+// Hitung jumlah nilai tugas
+$jumlah_nilai = 0;
+if ($id_kelas) {
+    $stmt = $pdo->prepare("SELECT * FROM tugas WHERE id_kelas = ?");
+    $stmt->execute([$id_kelas]);
+    $all_tugas = $stmt->fetchAll();
+
+    foreach ($all_tugas as $tugas) {
+        $nilai_siswa = json_decode($tugas['nilai_siswa'] ?? '[]', true);
+        if (!is_array($nilai_siswa)) continue;
+
+        foreach ($nilai_siswa as $nilai) {
+            if ($nilai['id_siswa'] == $user_id) {
+                $jumlah_nilai++;
+                break;
+            }
+        }
+    }
+}
+
+// Hitung jumlah arsip milik siswa
+$stmt = $pdo->prepare("SELECT COUNT(*) as jumlah_arsip FROM arsip WHERE id_uploader = ? AND tipe_uploader = 'siswa'");
+$stmt->execute([$user_id]);
+$jumlah_arsip = $stmt->fetch()['jumlah_arsip'] ?? 0;
+
+// Ambil tugas terbaru
+$tugas_terbaru = [];
+if ($id_kelas) {
+    $stmt = $pdo->prepare("
+        SELECT t.*, p.nama_pelajaran, g.nama_guru
+        FROM tugas t
+        JOIN pelajaran p ON t.id_pelajaran = p.id_pelajaran
+        JOIN user_guru g ON t.id_guru = g.id_guru
+        WHERE t.id_kelas = ?
+        ORDER BY t.tanggal_dibuat DESC
+        LIMIT 3
+    ");
+    $stmt->execute([$id_kelas]);
+    $tugas_terbaru = $stmt->fetchAll();
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -151,28 +267,28 @@ $current_title = $page_titles[$page] ?? 'Dashboard Siswa';
                 <div class="stat-icon blue">
                     <i class="fas fa-tasks"></i>
                 </div>
-                <div class="stat-value">12</div>
+                <div class="stat-value"><?php echo $stats_tugas['tugas_belum_dikumpulkan']; ?></div>
                 <div class="stat-label">Tugas Belum Dikumpulkan</div>
             </div>
             <div class="stat-card green">
                 <div class="stat-icon green">
                     <i class="fas fa-clipboard-check"></i>
                 </div>
-                <div class="stat-value">8</div>
+                <div class="stat-value"><?php echo $stats_tugas['tugas_dikumpulkan']; ?></div>
                 <div class="stat-label">Tugas Selesai</div>
             </div>
             <div class="stat-card purple">
                 <div class="stat-icon purple">
                     <i class="fas fa-file-alt"></i>
                 </div>
-                <div class="stat-value">7</div>
+                <div class="stat-value"><?php echo $jumlah_nilai; ?></div>
                 <div class="stat-label">Nilai Tugas</div>
             </div>
             <div class="stat-card orange">
                 <div class="stat-icon orange">
                     <i class="fas fa-folder-open"></i>
                 </div>
-                <div class="stat-value">15</div>
+                <div class="stat-value"><?php echo $jumlah_arsip; ?></div>
                 <div class="stat-label">Arsip Materi</div>
             </div>
         </div>
@@ -180,79 +296,49 @@ $current_title = $page_titles[$page] ?? 'Dashboard Siswa';
         <div class="section-title">
             <h3>Tugas Terbaru</h3>
         </div>
-        
+
         <div class="task-list">
-            <div class="task-card urgent">
-                <div class="task-header">
-                    <div>
-                        <div class="task-title">Tugas Matematika - Aljabar</div>
-                        <div class="task-subject">Matematika - Kelas 7A</div>
+            <?php if (count($tugas_terbaru) > 0): ?>
+                <?php foreach ($tugas_terbaru as $tugas): ?>
+                <div class="task-card <?php echo (new DateTime($tugas['deadline']) < new DateTime() && !isTugasDikumpulkan($tugas, $user_id)) ? 'urgent' : ''; ?>">
+                    <div class="task-header">
+                        <div>
+                            <div class="task-title"><?php echo htmlspecialchars($tugas['judul_tugas']); ?></div>
+                            <div class="task-subject"><?php echo htmlspecialchars($tugas['nama_pelajaran']); ?> - Kelas <?php echo $siswa_data['id_kelas']; ?></div>
+                        </div>
+                        <div class="task-badge <?php echo (new DateTime($tugas['deadline']) < new DateTime() && !isTugasDikumpulkan($tugas, $user_id)) ? 'badge-urgent' : 'badge-pending'; ?>">
+                            <?php echo (new DateTime($tugas['deadline']) < new DateTime() && !isTugasDikumpulkan($tugas, $user_id)) ? 'URGENT' : 'PENDING'; ?>
+                        </div>
                     </div>
-                    <div class="task-badge badge-urgent">URGENT</div>
-                </div>
-                <div class="task-meta">
-                    <div><i class="fas fa-calendar me-1"></i>Deadline: 15 Nov 2025</div>
-                    <div><i class="fas fa-file me-1"></i>3 File</div>
-                </div>
-                <div class="task-description">
-                    Kerjakan soal-soal aljabar dari buku halaman 45-50. Kumpulkan dalam bentuk PDF.
-                </div>
-                <div class="task-footer">
-                    <div class="teacher-info">
-                        <img src="https://ui-avatars.com/api/?name=Guru+Matematika&background=3b82f6&color=fff" alt="Teacher" class="teacher-avatar">
-                        <div class="teacher-name">Pak Budi</div>
+                    <div class="task-meta">
+                        <div><i class="fas fa-calendar me-1"></i>Deadline: <?php echo date('d M Y', strtotime($tugas['deadline'])); ?></div>
+                        <div><i class="fas fa-file me-1"></i>1 Tugas</div>
                     </div>
-                    <button class="task-action">Kerjakan</button>
-                </div>
-            </div>
-            
-            <div class="task-card">
-                <div class="task-header">
-                    <div>
-                        <div class="task-title">Laporan Praktikum Fisika</div>
-                        <div class="task-subject">Fisika - Kelas 7A</div>
+                    <div class="task-description">
+                        <?php echo htmlspecialchars($tugas['deskripsi'] ?? 'Deskripsi tugas tidak tersedia'); ?>
                     </div>
-                    <div class="task-badge badge-pending">PENDING</div>
-                </div>
-                <div class="task-meta">
-                    <div><i class="fas fa-calendar me-1"></i>Deadline: 20 Nov 2025</div>
-                    <div><i class="fas fa-file me-1"></i>2 File</div>
-                </div>
-                <div class="task-description">
-                    Buat laporan praktikum fisika tentang hukum Newton. Sertakan data pengamatan dan analisis.
-                </div>
-                <div class="task-footer">
-                    <div class="teacher-info">
-                        <img src="https://ui-avatars.com/api/?name=Guru+Fisika&background=10b981&color=fff" alt="Teacher" class="teacher-avatar">
-                        <div class="teacher-name">Bu Siti</div>
+                    <div class="task-footer">
+                        <div class="teacher-info">
+                            <img src="https://ui-avatars.com/api/?name=<?php echo urlencode($tugas['nama_guru']); ?>&background=3b82f6&color=fff" alt="Teacher" class="teacher-avatar">
+                            <div class="teacher-name"><?php echo htmlspecialchars($tugas['nama_guru']); ?></div>
+                        </div>
+                        <a href="../tugas/tugas_siswa.php" class="task-action">Kerjakan</a>
                     </div>
-                    <button class="task-action">Kerjakan</button>
                 </div>
-            </div>
-            
-            <div class="task-card">
-                <div class="task-header">
-                    <div>
-                        <div class="task-title">Membaca Bab Baru</div>
-                        <div class="task-subject">Bahasa Indonesia - Kelas 7A</div>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <div class="task-card">
+                    <div class="task-header">
+                        <div>
+                            <div class="task-title">Belum Ada Tugas</div>
+                            <div class="task-subject">Tidak ada tugas terbaru untuk saat ini</div>
+                        </div>
                     </div>
-                    <div class="task-badge badge-pending">PENDING</div>
-                </div>
-                <div class="task-meta">
-                    <div><i class="fas fa-calendar me-1"></i>Deadline: 25 Nov 2025</div>
-                    <div><i class="fas fa-book me-1"></i>1 Tugas Baca</div>
-                </div>
-                <div class="task-description">
-                    Baca dan buat ringkasan dari bab 5 buku pelajaran Bahasa Indonesia.
-                </div>
-                <div class="task-footer">
-                    <div class="teacher-info">
-                        <img src="https://ui-avatars.com/api/?name=Guru+Indo&background=8b5cf6&color=fff" alt="Teacher" class="teacher-avatar">
-                        <div class="teacher-name">Pak Joko</div>
+                    <div class="task-description">
+                        Guru belum memberikan tugas baru. Silakan periksa kembali nanti atau hubungi guru mata pelajaran.
                     </div>
-                    <button class="task-action">Baca</button>
                 </div>
-            </div>
+            <?php endif; ?>
         </div>
     </div>
 
