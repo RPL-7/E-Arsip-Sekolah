@@ -109,10 +109,20 @@ if ($id_kelas) {
 
     foreach ($all_tugas as $tugas) {
         $sudah_dikumpulkan = isTugasDikumpulkan($tugas, $user_id);
-        $deadline = new DateTime($tugas['deadline']);
+        
+        // Perbaikan: Cek deadline dengan aman
+        $deadline = null;
+        if (!empty($tugas['deadline'])) {
+            try {
+                $deadline = new DateTime($tugas['deadline']);
+            } catch (Exception $e) {
+                $deadline = null;
+            }
+        }
+
         $now = new DateTime();
 
-        if ($deadline < $now && !$sudah_dikumpulkan) {
+        if ($deadline && $deadline < $now && !$sudah_dikumpulkan) {
             $stats_tugas['tugas_belum_dikumpulkan']++;
         }
 
@@ -300,31 +310,50 @@ if ($id_kelas) {
         <div class="task-list">
             <?php if (count($tugas_terbaru) > 0): ?>
                 <?php foreach ($tugas_terbaru as $tugas): ?>
-                <div class="task-card <?php echo (new DateTime($tugas['deadline']) < new DateTime() && !isTugasDikumpulkan($tugas, $user_id)) ? 'urgent' : ''; ?>">
-                    <div class="task-header">
-                        <div>
-                            <div class="task-title"><?php echo htmlspecialchars($tugas['judul_tugas']); ?></div>
-                            <div class="task-subject"><?php echo htmlspecialchars($tugas['nama_pelajaran']); ?> - Kelas <?php echo $siswa_data['id_kelas']; ?></div>
+                    <?php 
+                    // Cek apakah deadline ada dan valid
+                    $deadline = null;
+                    $isUrgent = false;
+                    
+                    if (!empty($tugas['deadline'])) {
+                        try {
+                            $deadline = new DateTime($tugas['deadline']);
+                            $now = new DateTime();
+                            $isUrgent = ($deadline < $now && !isTugasDikumpulkan($tugas, $user_id));
+                        } catch (Exception $e) {
+                            // Jika terjadi error saat parsing date, set deadline null
+                            $deadline = null;
+                        }
+                    }
+                    ?>
+                    <div class="task-card <?php echo $isUrgent ? 'urgent' : ''; ?>">
+                        <div class="task-header">
+                            <div>
+                                <div class="task-title"><?php echo htmlspecialchars($tugas['judul_tugas']); ?></div>
+                                <div class="task-subject"><?php echo htmlspecialchars($tugas['nama_pelajaran']); ?> - Kelas <?php echo $siswa_data['id_kelas']; ?></div>
+                            </div>
+                            <div class="task-badge <?php echo $isUrgent ? 'badge-urgent' : 'badge-pending'; ?>">
+                                <?php echo $isUrgent ? 'URGENT' : 'PENDING'; ?>
+                            </div>
                         </div>
-                        <div class="task-badge <?php echo (new DateTime($tugas['deadline']) < new DateTime() && !isTugasDikumpulkan($tugas, $user_id)) ? 'badge-urgent' : 'badge-pending'; ?>">
-                            <?php echo (new DateTime($tugas['deadline']) < new DateTime() && !isTugasDikumpulkan($tugas, $user_id)) ? 'URGENT' : 'PENDING'; ?>
+                        <div class="task-meta">
+                            <div>
+                                <i class="fas fa-calendar me-1"></i>
+                                Deadline: <?php echo $deadline ? $deadline->format('d M Y') : 'Belum ditentukan'; ?>
+                            </div>
+                            <div><i class="fas fa-file me-1"></i>1 Tugas</div>
+                        </div>
+                        <div class="task-description">
+                            <?php echo htmlspecialchars($tugas['deskripsi'] ?? 'Deskripsi tugas tidak tersedia'); ?>
+                        </div>
+                        <div class="task-footer">
+                            <div class="teacher-info">
+                                <img src="https://ui-avatars.com/api/?name=<?php echo urlencode($tugas['nama_guru']); ?>&background=3b82f6&color=fff" alt="Teacher" class="teacher-avatar">
+                                <div class="teacher-name"><?php echo htmlspecialchars($tugas['nama_guru']); ?></div>
+                            </div>
+                            <a href="../tugas/tugas_siswa.php" class="task-action">Kerjakan</a>
                         </div>
                     </div>
-                    <div class="task-meta">
-                        <div><i class="fas fa-calendar me-1"></i>Deadline: <?php echo date('d M Y', strtotime($tugas['deadline'])); ?></div>
-                        <div><i class="fas fa-file me-1"></i>1 Tugas</div>
-                    </div>
-                    <div class="task-description">
-                        <?php echo htmlspecialchars($tugas['deskripsi'] ?? 'Deskripsi tugas tidak tersedia'); ?>
-                    </div>
-                    <div class="task-footer">
-                        <div class="teacher-info">
-                            <img src="https://ui-avatars.com/api/?name=<?php echo urlencode($tugas['nama_guru']); ?>&background=3b82f6&color=fff" alt="Teacher" class="teacher-avatar">
-                            <div class="teacher-name"><?php echo htmlspecialchars($tugas['nama_guru']); ?></div>
-                        </div>
-                        <a href="../tugas/tugas_siswa.php" class="task-action">Kerjakan</a>
-                    </div>
-                </div>
                 <?php endforeach; ?>
             <?php else: ?>
                 <div class="task-card">
