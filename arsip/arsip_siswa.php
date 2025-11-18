@@ -210,7 +210,7 @@ function formatSize($bytes) {
                     <li><a class="dropdown-item" href="../profil/profil_siswa.php"><i class="fas fa-user me-2"></i>Profile</a></li>
                     <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Settings</a></li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="../../login.php"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                    <li><a class="dropdown-item" href="../../logout.php"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
                 </ul>
             </div>
         </div>
@@ -247,7 +247,7 @@ function formatSize($bytes) {
         </div>
 
         <div class="menu-section">
-            <a href="../../login.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Log Out">
+            <a href="../../logout.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Log Out">
                 <i class="fas fa-sign-out-alt"></i>
                 <span>LOG OUT</span>
             </a>
