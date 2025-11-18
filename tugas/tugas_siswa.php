@@ -234,7 +234,7 @@ if (!$id_kelas) {
                     <li><a class="dropdown-item" href="?page=profil_saya"><i class="fas fa-user me-2"></i>Profile</a></li>
                     <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Settings</a></li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="../../login.php"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                    <li><a class="dropdown-item" href="../../logout.php"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
                 </ul>
             </div>
         </div>
@@ -271,7 +271,7 @@ if (!$id_kelas) {
         </div>
 
         <div class="menu-section">
-            <a href="../../login.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Log Out">
+            <a href="../../logout.php" class="menu-item" data-bs-toggle="tooltip" data-bs-placement="right" title="Log Out">
                 <i class="fas fa-sign-out-alt"></i>
                 <span>LOG OUT</span>
             </a>
@@ -342,9 +342,9 @@ if (!$id_kelas) {
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="stat-card" style="border-left-color: #ef4444;">
+                <div class="stat-card gree" style="border-left-color: #ef4444;">
                     <div class="stat-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
-                        <i class="fas fa-times-circle"></i>
+                        <i class="fas fa-check-double"></i>
                     </div>
                     <div class="stat-value"><?php echo $sudah_dinilai; ?></div>
                     <div class="stat-label">Sudah Dinilai</div>
@@ -494,7 +494,7 @@ if (!$id_kelas) {
     </div>
 
     <!-- Modal Upload Tugas -->
-    <div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal fade" id="uploadModal" tabindex="-1" data-bs-backdrop="false">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
