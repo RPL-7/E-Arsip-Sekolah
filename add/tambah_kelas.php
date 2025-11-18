@@ -272,7 +272,7 @@ $total_siswa_terdaftar = $stmt->fetch()['total'];
                         </div>
                         
                         <div class="form-group">
-                            <label>Wali Kelas (Opsional)</label>
+                            <label>Wali Kelas</label>
                             <select name="id_guru_wali">
                                 <option value="">Belum Ada Wali Kelas</option>
                                 <?php foreach ($all_guru as $guru): ?>
