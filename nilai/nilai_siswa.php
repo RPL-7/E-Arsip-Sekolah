@@ -53,40 +53,49 @@ if (!$id_kelas) {
 
     $stmt = $pdo->prepare($query);
     $stmt->execute($params);
+    
     $all_tugas = $stmt->fetchAll();
 
-    // Proses setiap tugas untuk cek nilai
-    $nilai_list = [];
-    foreach ($all_tugas as &$tugas) {
-        $nilai_siswa = json_decode($tugas['nilai_siswa'] ?? '[]', true);
-        $file_jawaban = json_decode($tugas['file_jawaban'] ?? '[]', true);
+    $processed = [];
 
-        $tugas['sudah_kumpul'] = false;
-        $tugas['tanggal_kumpul'] = null;
-        $tugas['nilai'] = null;
+    foreach ($all_tugas as $raw) {
 
+        $id = $raw['id_tugas'];
+
+        // Jika sudah pernah diproses, skip baris duplikat
+        if (isset($processed[$id])) continue;
+
+        // Decode file dan nilai
+        $nilai_siswa = json_decode($raw['nilai_siswa'] ?? '[]', true);
+        $file_jawaban = json_decode($raw['file_jawaban'] ?? '[]', true);
+
+        $raw['sudah_kumpul'] = false;
+        $raw['tanggal_kumpul'] = null;
+        $raw['nilai'] = null;
+
+        // Cek file dikumpulkan
         foreach ($file_jawaban as $fw) {
             if ($fw['id_siswa'] == $user_id) {
-                $tugas['sudah_kumpul'] = true;
-                $tugas['tanggal_kumpul'] = $fw['tanggal_upload'];
+                $raw['sudah_kumpul'] = true;
+                $raw['tanggal_kumpul'] = $fw['tanggal_upload'];
                 break;
             }
         }
 
+        // Cek nilai siswa
         foreach ($nilai_siswa as $ns) {
             if ($ns['id_siswa'] == $user_id) {
-                $tugas['nilai'] = $ns;
-                $nilai_list[] = [
-                    'tugas' => $tugas['judul_tugas'],
-                    'pelajaran' => $tugas['nama_pelajaran'],
-                    'nilai' => $ns['nilai'],
-                    'tanggal' => $ns['tanggal_nilai']
-                ];
+                $raw['nilai'] = $ns;
                 break;
             }
         }
+
+        // Simpan hasil akhir (unique)
+        $processed[$id] = $raw;
     }
 
+// Final array yang sudah bersih
+$all_tugas = array_values($processed);
     // Ambil pelajaran untuk filter
     $stmt = $pdo->prepare("
         SELECT DISTINCT p.id_pelajaran, p.nama_pelajaran
