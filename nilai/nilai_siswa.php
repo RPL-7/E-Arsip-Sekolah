@@ -53,6 +53,7 @@ if (!$id_kelas) {
 
     $stmt = $pdo->prepare($query);
     $stmt->execute($params);
+    
     $all_tugas = $stmt->fetchAll();
 
     $processed = [];

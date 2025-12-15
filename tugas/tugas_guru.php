@@ -20,7 +20,7 @@ $error_message = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
-    
+
     // CREATE MATERI
     if ($action === 'create_materi') {
         try {
@@ -28,66 +28,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $deskripsi = trim($_POST['deskripsi']);
             $id_pelajaran = $_POST['id_pelajaran'];
             $id_kelas = $_POST['id_kelas'];
-            
+
             if (empty($judul_materi) || empty($id_pelajaran) || empty($id_kelas)) {
                 throw new Exception("Judul materi, mata pelajaran, dan kelas wajib diisi!");
             }
-            
+
             // Cek mengajar
             $stmt = $pdo->prepare("SELECT COUNT(*) FROM kelas_pelajaran WHERE id_kelas = ? AND id_pelajaran = ? AND id_guru = ?");
             $stmt->execute([$id_kelas, $id_pelajaran, $user_id]);
             if ($stmt->fetchColumn() == 0) {
                 throw new Exception("Anda tidak mengajar mata pelajaran ini di kelas tersebut!");
             }
-            
+
             $file_path = null;
             $file_name = null;
-            
+
             $use_arsip = $_POST['use_arsip'] ?? 'upload';
-            
+
             if ($use_arsip === 'arsip' && !empty($_POST['id_arsip'])) {
                 $id_arsip = $_POST['id_arsip'];
                 $stmt = $pdo->prepare("SELECT file_path, file_name FROM arsip WHERE id_arsip = ? AND id_uploader = ? AND tipe_uploader = 'guru'");
                 $stmt->execute([$id_arsip, $user_id]);
                 $arsip = $stmt->fetch();
-                
+
                 if ($arsip) {
                     $file_path = $arsip['file_path'];
                     $file_name = $arsip['file_name'];
                 }
             } elseif ($use_arsip === 'upload' && isset($_FILES['file']) && $_FILES['file']['error'] !== UPLOAD_ERR_NO_FILE) {
                 $file = $_FILES['file'];
-                
+
                 if ($file['error'] !== UPLOAD_ERR_OK) {
                     throw new Exception("Error saat upload file!");
                 }
-                
+
                 $max_size = 10 * 1024 * 1024;
                 if ($file['size'] > $max_size) {
                     throw new Exception("Ukuran file maksimal 10MB!");
                 }
-                
+
                 $allowed_types = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'jpg', 'jpeg', 'png', 'zip', 'rar'];
                 $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-                
+
                 if (!in_array($file_extension, $allowed_types)) {
                     throw new Exception("Tipe file tidak diizinkan!");
                 }
-                
+
                 $file_name = $file['name'];
                 $unique_name = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file_name);
                 $file_path = $upload_base_dir . $unique_name;
-                
+
                 if (!move_uploaded_file($file['tmp_name'], $file_path)) {
                     throw new Exception("Gagal mengupload file!");
                 }
             }
-            
+
             $stmt = $pdo->prepare("INSERT INTO materi (judul_materi, deskripsi, id_pelajaran, id_kelas, id_guru, file_path, file_name) VALUES (?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([$judul_materi, $deskripsi, $id_pelajaran, $id_kelas, $user_id, $file_path, $file_name]);
-            
+
             $success_message = "Materi berhasil diupload!";
-            
+
         } catch (Exception $e) {
             $error_message = $e->getMessage();
             if (isset($file_path) && file_exists($file_path)) {
@@ -95,36 +95,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
-    
+
     // DELETE MATERI
     if ($action === 'delete_materi') {
         try {
             $id_materi = $_POST['id_materi'];
-            
+
             $stmt = $pdo->prepare("SELECT * FROM materi WHERE id_materi = ? AND id_guru = ?");
             $stmt->execute([$id_materi, $user_id]);
             $materi = $stmt->fetch();
-            
+
             if (!$materi) {
                 throw new Exception("Materi tidak ditemukan!");
             }
-            
+
             if (!empty($materi['file_path']) && file_exists($materi['file_path'])) {
                 if (strpos($materi['file_path'], 'tugas/') !== false) {
                     unlink($materi['file_path']);
                 }
             }
-            
+
             $stmt = $pdo->prepare("DELETE FROM materi WHERE id_materi = ?");
             $stmt->execute([$id_materi]);
-            
+
             $success_message = "Materi berhasil dihapus!";
-            
+
         } catch (Exception $e) {
             $error_message = $e->getMessage();
         }
     }
-    
+
     // CREATE TUGAS (kode lama tetap ada)
     if ($action === 'create') {
         try {
@@ -133,64 +133,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $id_pelajaran = $_POST['id_pelajaran'];
             $id_kelas = $_POST['id_kelas'];
             $deadline = !empty($_POST['deadline']) ? $_POST['deadline'] : null;
-            
+
             if (empty($judul_tugas) || empty($id_pelajaran) || empty($id_kelas)) {
                 throw new Exception("Judul tugas, mata pelajaran, dan kelas wajib diisi!");
             }
-            
+
             $stmt = $pdo->prepare("SELECT COUNT(*) FROM kelas_pelajaran WHERE id_kelas = ? AND id_pelajaran = ? AND id_guru = ?");
             $stmt->execute([$id_kelas, $id_pelajaran, $user_id]);
             if ($stmt->fetchColumn() == 0) {
                 throw new Exception("Anda tidak mengajar mata pelajaran ini di kelas tersebut!");
             }
-            
+
             $file_path = null;
             $file_name = null;
             $use_arsip = $_POST['use_arsip'] ?? 'upload';
-            
+
             if ($use_arsip === 'arsip' && !empty($_POST['id_arsip'])) {
                 $id_arsip = $_POST['id_arsip'];
                 $stmt = $pdo->prepare("SELECT file_path, file_name FROM arsip WHERE id_arsip = ? AND id_uploader = ? AND tipe_uploader = 'guru'");
                 $stmt->execute([$id_arsip, $user_id]);
                 $arsip = $stmt->fetch();
-                
+
                 if ($arsip) {
                     $file_path = $arsip['file_path'];
                     $file_name = $arsip['file_name'];
                 }
             } elseif ($use_arsip === 'upload' && isset($_FILES['file']) && $_FILES['file']['error'] !== UPLOAD_ERR_NO_FILE) {
                 $file = $_FILES['file'];
-                
+
                 if ($file['error'] !== UPLOAD_ERR_OK) {
                     throw new Exception("Error saat upload file!");
                 }
-                
+
                 $max_size = 10 * 1024 * 1024;
                 if ($file['size'] > $max_size) {
                     throw new Exception("Ukuran file maksimal 10MB!");
                 }
-                
+
                 $allowed_types = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'jpg', 'jpeg', 'png', 'zip', 'rar'];
                 $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-                
+
                 if (!in_array($file_extension, $allowed_types)) {
                     throw new Exception("Tipe file tidak diizinkan!");
                 }
-                
+
                 $file_name = $file['name'];
                 $unique_name = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file_name);
                 $file_path = $upload_base_dir . $unique_name;
-                
+
                 if (!move_uploaded_file($file['tmp_name'], $file_path)) {
                     throw new Exception("Gagal mengupload file!");
                 }
             }
-            
+
             $stmt = $pdo->prepare("INSERT INTO tugas (judul_tugas, deskripsi, id_pelajaran, id_kelas, id_guru, file_path, file_name, deadline) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([$judul_tugas, $deskripsi, $id_pelajaran, $id_kelas, $user_id, $file_path, $file_name, $deadline]);
-            
+
             $success_message = "Tugas berhasil dibuat!";
-            
+
         } catch (Exception $e) {
             $error_message = $e->getMessage();
             if (isset($file_path) && file_exists($file_path)) {
@@ -198,30 +198,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
-    
+
     if ($action === 'update_status') {
         try {
             $id_tugas = $_POST['id_tugas'];
             $status = $_POST['status'];
-            
+
             $stmt = $pdo->prepare("UPDATE tugas SET status = ? WHERE id_tugas = ? AND id_guru = ?");
             $stmt->execute([$status, $id_tugas, $user_id]);
-            
+
             $success_message = "Status tugas berhasil diubah!";
-            
+
         } catch (Exception $e) {
             $error_message = $e->getMessage();
         }
     }
-    
+
     if ($action === 'delete') {
         try {
             $id_tugas = $_POST['id_tugas'];
-            
+
             $stmt = $pdo->prepare("SELECT * FROM tugas WHERE id_tugas = ? AND id_guru = ?");
             $stmt->execute([$id_tugas, $user_id]);
             $tugas = $stmt->fetch();
-            
+
             if (!$tugas) {
                 throw new Exception("Tugas tidak ditemukan!");
             }
@@ -236,7 +236,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([$id_tugas]);
 
             $success_message = "Tugas berhasil dihapus!";
-            
+
         } catch (Exception $e) {
             $error_message = $e->getMessage();
         }
@@ -733,9 +733,33 @@ function formatSize($bytes) {
                                     <input type="datetime-local" name="deadline" class="form-control">
                                 </div>
                                 <div class="col-md-12">
+                                    <label class="form-label">Pilih Sumber File</label>
+                                    <div class="mb-2">
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="use_arsip" id="upload_tugas" value="upload" checked>
+                                            <label class="form-check-label" for="upload_tugas">Upload Baru</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="use_arsip" id="arsip_tugas" value="arsip">
+                                            <label class="form-check-label" for="arsip_tugas">Dari Arsip</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-12" id="upload_section_tugas">
                                     <label class="form-label">File</label>
                                     <input type="file" name="file" class="form-control">
                                     <div class="form-text">Maksimal 10MB. Tipe file: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, JPEG, PNG, ZIP, RAR</div>
+                                </div>
+                                <div class="col-md-12" id="arsip_section_tugas" style="display: none;">
+                                    <label class="form-label">Pilih File dari Arsip</label>
+                                    <select name="id_arsip" class="form-select">
+                                        <option value="">Pilih file dari arsip Anda</option>
+                                        <?php foreach ($arsip_list as $arsip): ?>
+                                        <option value="<?php echo $arsip['id_arsip']; ?>" data-file-name="<?php echo htmlspecialchars($arsip['file_name']); ?>">
+                                            <?php echo htmlspecialchars($arsip['judul_arsip']); ?> (<?php echo htmlspecialchars($arsip['file_name']); ?> - <?php echo formatSize($arsip['file_size']); ?>)
+                                        </option>
+                                        <?php endforeach; ?>
+                                    </select>
                                 </div>
                             </div>
                         </div>
@@ -787,9 +811,33 @@ function formatSize($bytes) {
                                     <textarea name="deskripsi" class="form-control" rows="3"></textarea>
                                 </div>
                                 <div class="col-md-12">
+                                    <label class="form-label">Pilih Sumber File</label>
+                                    <div class="mb-2">
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="use_arsip" id="upload_materi" value="upload" checked>
+                                            <label class="form-check-label" for="upload_materi">Upload Baru</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="use_arsip" id="arsip_materi" value="arsip">
+                                            <label class="form-check-label" for="arsip_materi">Dari Arsip</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-12" id="upload_section_materi">
                                     <label class="form-label">File</label>
-                                    <input type="file" name="file" class="form-control" required>
+                                    <input type="file" name="file" class="form-control">
                                     <div class="form-text">Maksimal 10MB. Tipe file: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, JPEG, PNG, ZIP, RAR</div>
+                                </div>
+                                <div class="col-md-12" id="arsip_section_materi" style="display: none;">
+                                    <label class="form-label">Pilih File dari Arsip</label>
+                                    <select name="id_arsip" class="form-select">
+                                        <option value="">Pilih file dari arsip Anda</option>
+                                        <?php foreach ($arsip_list as $arsip): ?>
+                                        <option value="<?php echo $arsip['id_arsip']; ?>" data-file-name="<?php echo htmlspecialchars($arsip['file_name']); ?>">
+                                            <?php echo htmlspecialchars($arsip['judul_arsip']); ?> (<?php echo htmlspecialchars($arsip['file_name']); ?> - <?php echo formatSize($arsip['file_size']); ?>)
+                                        </option>
+                                        <?php endforeach; ?>
+                                    </select>
                                 </div>
                             </div>
                         </div>
@@ -895,6 +943,73 @@ function formatSize($bytes) {
                 form.submit();
             }
         }
+
+        // Toggle file selection sections for materi form
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadRadioMateri = document.getElementById('upload_materi');
+            const arsipRadioMateri = document.getElementById('arsip_materi');
+            const uploadSectionMateri = document.getElementById('upload_section_materi');
+            const arsipSectionMateri = document.getElementById('arsip_section_materi');
+
+            if (uploadRadioMateri && arsipRadioMateri) {
+                uploadRadioMateri.addEventListener('change', function() {
+                    if (this.checked) {
+                        uploadSectionMateri.style.display = 'block';
+                        arsipSectionMateri.style.display = 'none';
+                    }
+                });
+
+                arsipRadioMateri.addEventListener('change', function() {
+                    if (this.checked) {
+                        uploadSectionMateri.style.display = 'none';
+                        arsipSectionMateri.style.display = 'block';
+                    }
+                });
+            }
+
+            // Toggle file selection sections for tugas form
+            const uploadRadioTugas = document.getElementById('upload_tugas');
+            const arsipRadioTugas = document.getElementById('arsip_tugas');
+            const uploadSectionTugas = document.getElementById('upload_section_tugas');
+            const arsipSectionTugas = document.getElementById('arsip_section_tugas');
+
+            if (uploadRadioTugas && arsipRadioTugas) {
+                uploadRadioTugas.addEventListener('change', function() {
+                    if (this.checked) {
+                        uploadSectionTugas.style.display = 'block';
+                        arsipSectionTugas.style.display = 'none';
+                    }
+                });
+
+                arsipRadioTugas.addEventListener('change', function() {
+                    if (this.checked) {
+                        uploadSectionTugas.style.display = 'none';
+                        arsipSectionTugas.style.display = 'block';
+                    }
+                });
+            }
+
+            // Reset form when modal is closed
+            const materiModal = document.getElementById('modalTambahMateri');
+            materiModal.addEventListener('hidden.bs.modal', function() {
+                const uploadRadio = document.getElementById('upload_materi');
+                if (uploadRadio) {
+                    uploadRadio.checked = true;
+                    if (uploadSectionMateri) uploadSectionMateri.style.display = 'block';
+                    if (arsipSectionMateri) arsipSectionMateri.style.display = 'none';
+                }
+            });
+
+            const tugasModal = document.getElementById('modalTambahTugas');
+            tugasModal.addEventListener('hidden.bs.modal', function() {
+                const uploadRadio = document.getElementById('upload_tugas');
+                if (uploadRadio) {
+                    uploadRadio.checked = true;
+                    if (uploadSectionTugas) uploadSectionTugas.style.display = 'block';
+                    if (arsipSectionTugas) arsipSectionTugas.style.display = 'none';
+                }
+            });
+        });
     </script>
 </body>
 </html>

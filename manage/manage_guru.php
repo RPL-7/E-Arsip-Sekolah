@@ -117,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
             $stmt = $pdo->prepare("
                 UPDATE user_guru
-                SET nip = ?, nama_guru = ?, email = ?, jenis_kelamin = ?, tanggal_lahir = ?, 
+                SET nip = ?, nama_guru = ?, email = ?, jenis_kelamin = ?, tanggal_lahir = ?,
                     alamat = ?, no_hp = ?, status = ?, password_login = ?
                 WHERE id_guru = ?
             ");
@@ -125,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         } else {
             $stmt = $pdo->prepare("
                 UPDATE user_guru
-                SET nip = ?, nama_guru = ?, email = ?, jenis_kelamin = ?, tanggal_lahir = ?, 
+                SET nip = ?, nama_guru = ?, email = ?, jenis_kelamin = ?, tanggal_lahir = ?,
                     alamat = ?, no_hp = ?, status = ?
                 WHERE id_guru = ?
             ");
@@ -143,11 +143,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete') {
     try {
         $id_guru = $_POST['id_guru'];
-
-        // Cek jangan hapus diri sendiri
-        if ($id_guru == $user_id) {
-            throw new Exception("Anda tidak dapat menghapus akun sendiri!");
-        }
 
         // Cek apakah guru masih menjadi wali kelas
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM kelas WHERE id_guru_wali = ?");
@@ -214,7 +209,7 @@ $total_guru = $total_guru_aktif + $total_guru_tidak_aktif;
     <link rel="stylesheet" href="../css/manage_guru.css">
 </head>
 <body class="light-theme">
-    
+
     <div class="header d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center gap-3">
             <button class="sidebar-toggle" id="sidebarToggle">
@@ -222,7 +217,7 @@ $total_guru = $total_guru_aktif + $total_guru_tidak_aktif;
             </button>
             <div class="logo">MANAJEMEN GURU</div>
         </div>
-        
+
         <div class="d-flex align-items-center gap-3">
             <button class="theme-toggle" id="themeToggle">
                 <i class="fas fa-moon"></i>
@@ -422,9 +417,6 @@ $total_guru = $total_guru_aktif + $total_guru_tidak_aktif;
                             <td><?php echo htmlspecialchars($guru['nip']); ?></td>
                             <td>
                                 <strong><?php echo htmlspecialchars($guru['nama_guru']); ?></strong>
-                                <?php if ($guru['id_guru'] == $user_id): ?>
-                                <span class="badge bg-warning text-dark ms-2">Anda</span>
-                                <?php endif; ?>
                             </td>
                             <td><?php echo htmlspecialchars($guru['email']); ?></td>
                             <td><?php echo htmlspecialchars($guru['no_hp'] ?? '-'); ?></td>
@@ -439,8 +431,7 @@ $total_guru = $total_guru_aktif + $total_guru_tidak_aktif;
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <button class="btn btn-danger btn-sm"
-                                        onclick='deleteGuru(<?php echo $guru['id_guru']; ?>, "<?php echo addslashes(htmlspecialchars($guru['nama_guru'])); ?>")'
-                                        <?php echo $guru['id_guru'] == $user_id ? 'disabled' : ''; ?>>
+                                        onclick='deleteGuru(<?php echo $guru['id_guru']; ?>, "<?php echo addslashes(htmlspecialchars($guru['nama_guru'])); ?>")'>
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </td>
@@ -665,7 +656,7 @@ $total_guru = $total_guru_aktif + $total_guru_tidak_aktif;
         function updateTooltips() {
             tooltipList.forEach(tooltip => tooltip.dispose());
             tooltipList = [];
-            
+
             if (sidebar.classList.contains('collapsed')) {
                 const tooltipElements = document.querySelectorAll('[data-bs-toggle="tooltip"]');
                 tooltipList = [...tooltipElements].map(el => {
@@ -684,7 +675,7 @@ $total_guru = $total_guru_aktif + $total_guru_tidak_aktif;
         themeToggle.addEventListener('click', () => {
             body.classList.toggle('dark-theme');
             body.classList.toggle('light-theme');
-            
+
             const icon = themeToggle.querySelector('i');
             if (body.classList.contains('dark-theme')) {
                 icon.classList.remove('fa-moon');
@@ -733,7 +724,7 @@ $total_guru = $total_guru_aktif + $total_guru_tidak_aktif;
             const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
             modal.show();
         }
-        
+
         // Auto close alerts
         setTimeout(() => {
             const alerts = document.querySelectorAll('.alert');
