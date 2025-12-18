@@ -62,7 +62,7 @@ E-Arsip Sekolah adalah aplikasi berbasis web yang dikembangkan untuk mengatasi p
 
 1. **Clone atau Download Repository**
    ```bash
-   git clone [URL_REPOSITORY]
+   git clone https://github.com/RPL-7/E-Arsip-Sekolah
    ```
 
 2. **Pindahkan ke Folder Server**
@@ -71,17 +71,17 @@ E-Arsip Sekolah adalah aplikasi berbasis web yang dikembangkan untuk mengatasi p
 
 3. **Import Database**
    - Buka phpMyAdmin (http://localhost/phpmyadmin)
-   - Buat database baru dengan nama `earsip_sekolah`
-   - Import file SQL yang tersedia di folder `database/`
+   - Buat database baru dengan nama `db_arsipsekolah`
+   - Import file SQL yang tersedia `db_arsipsekolah.sql`
 
 4. **Konfigurasi Database**
-   - Buka file `config/database.php`
+   - Buka file `config.php`
    - Sesuaikan pengaturan database:
      ```php
      $host = "localhost";
      $user = "root";
      $password = "";
-     $database = "earsip_sekolah";
+     $database = "db_arsipsekolah";
      ```
 
 5. **Jalankan Aplikasi**
@@ -176,29 +176,5 @@ E-Arsip Sekolah adalah aplikasi berbasis web yang dikembangkan untuk mengatasi p
 - Pengelolaan arsip lebih modern
 - Mengurangi biaya operasional
 - Meningkatkan efisiensi administrasi
-
-## 🐛 Troubleshooting
-
-### Database Connection Error
-- Pastikan MySQL sudah berjalan
-- Cek konfigurasi di `config/database.php`
-
-### File Upload Gagal
-- Cek permission folder `uploads/`
-- Pastikan ukuran file tidak melebihi batas (default: 10MB)
-
-### Session Error
-- Pastikan `session_start()` sudah dipanggil
-- Cek konfigurasi PHP session
-
-## 📝 Lisensi
-
-Proyek ini dikembangkan untuk keperluan akademik di Politeknik Negeri Lhokseumawe.
-
-## 📞 Kontak & Support
-
-Untuk pertanyaan atau bantuan, hubungi tim pengembang melalui email institusi Politeknik Negeri Lhokseumawe.
-
----
 
 **© 2025 Kelompok 7 - Teknik Informatika PNL**
